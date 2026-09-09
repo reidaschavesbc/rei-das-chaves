@@ -72,6 +72,7 @@
       <li><a href="fechaduras-eletronicas" class="drawer-link">Fechaduras Eletrônicas</a></li>
       <li><a href="fechaduras-jbm" class="drawer-link">Fechaduras JBM</a></li>
       <li><a href="fechaduras-mecanicas" class="drawer-link">Fechaduras Mecânicas</a></li>
+      <li><a href="automotivo" class="drawer-link">Atendimento Automotivo</a></li>
       <li><a href="index#como-funciona" class="drawer-link">Como Funciona</a></li>
       <li><a href="index#emergencia" class="drawer-link">Emergência 24h</a></li>
       <li><a href="index#contato" class="drawer-link">Contato</a></li>
@@ -147,8 +148,26 @@
 
       <form id="autoForm" novalidate>
 
+        <!-- ETAPA: CATEGORIA DO VEÍCULO -->
+        <section class="wizard-step" data-step="categoria">
+          <fieldset>
+            <legend class="wizard-question">Atendimento para carro ou moto?</legend>
+            <div class="option-grid option-grid-2">
+              <label class="option-card">
+                <input type="radio" name="categoria" value="carro" class="option-input" required>
+                <span class="option-text"><strong>Carro</strong></span>
+              </label>
+              <label class="option-card">
+                <input type="radio" name="categoria" value="moto" class="option-input">
+                <span class="option-text"><strong>Moto</strong></span>
+              </label>
+            </div>
+            <p class="wizard-error" data-error-for="categoria" hidden>Escolhe uma opção pra continuar.</p>
+          </fieldset>
+        </section>
+
         <!-- ETAPA: SERVIÇO -->
-        <section class="wizard-step" data-step="servico">
+        <section class="wizard-step" data-step="servico" hidden>
           <fieldset>
             <legend class="wizard-question">O que você precisa?</legend>
             <div class="option-grid">
@@ -219,6 +238,46 @@
           </div>
 
           <p class="wizard-error" data-error-for="veiculo" hidden>Preenche os campos com * pra continuar.</p>
+        </section>
+
+        <!-- ETAPA: VEÍCULO (MOTO) -->
+        <section class="wizard-step" data-step="veiculo_moto" hidden>
+          <h2 class="wizard-question">Dados da moto</h2>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Modelo *</span>
+              <input type="text" name="modelo_moto" placeholder="Ex: CG 160" required>
+            </label>
+            <label class="field">
+              <span>Ano</span>
+              <input type="text" name="ano_moto" placeholder="Ex: 2020 (se souber)" inputmode="numeric">
+            </label>
+            <label class="field">
+              <span>Cidade *</span>
+              <input type="text" name="cidade_moto" placeholder="Ex: Balneário Camboriú" required>
+            </label>
+            <label class="field">
+              <span>Bairro *</span>
+              <input type="text" name="bairro_moto" placeholder="Ex: Centro" required>
+            </label>
+          </div>
+
+          <div class="field-group" data-field-group="atendimento-moto">
+            <span class="field-group-label">A moto será levada à loja ou precisa de atendimento no local?</span>
+            <div class="option-grid option-grid-2">
+              <label class="option-card option-card-sm">
+                <input type="radio" name="atendimento_moto" value="loja" class="option-input">
+                <span class="option-text">Vou levar à loja</span>
+              </label>
+              <label class="option-card option-card-sm">
+                <input type="radio" name="atendimento_moto" value="local" class="option-input">
+                <span class="option-text">Preciso de atendimento no local</span>
+              </label>
+            </div>
+          </div>
+
+          <p class="wizard-error" data-error-for="veiculo_moto" hidden>Preenche os campos com * pra continuar.</p>
         </section>
 
         <!-- ETAPA: TIPO DE CHAVE -->
@@ -308,6 +367,32 @@
           </div>
         </section>
 
+        <!-- ETAPA: CHAVE CODIFICADA (MOTO) -->
+        <section class="wizard-step" data-step="codificacao" hidden>
+          <h2 class="wizard-question">Você sabe se a chave dessa moto é codificada?</h2>
+          <div class="option-grid option-grid-3">
+            <label class="option-card option-card-sm">
+              <input type="radio" name="codificacao" value="sim" class="option-input">
+              <span class="option-text">
+                <strong>Sim</strong>
+                <small>Tem chip / trava eletrônica.</small>
+              </span>
+            </label>
+            <label class="option-card option-card-sm">
+              <input type="radio" name="codificacao" value="nao" class="option-input">
+              <span class="option-text">
+                <strong>Não</strong>
+                <small>Chave simples, sem chip.</small>
+              </span>
+            </label>
+            <label class="option-card option-card-sm">
+              <input type="radio" name="codificacao" value="naosei" class="option-input">
+              <span class="option-text"><strong>Não sei</strong></span>
+            </label>
+          </div>
+          <p class="wizard-error" data-error-for="codificacao" hidden>Escolhe uma opção pra continuar.</p>
+        </section>
+
         <!-- ETAPA: SITUAÇÃO DA CHAVE ATUAL -->
         <section class="wizard-step" data-step="situacao" hidden>
           <h2 class="wizard-question">Você possui alguma chave funcionando?</h2>
@@ -358,6 +443,7 @@
             </svg>
             Enviar solicitação pelo WhatsApp
           </button>
+          <p class="wizard-response-note">Após o envio, respondemos assim que possível.</p>
         </section>
 
         <!-- NAVEGAÇÃO -->

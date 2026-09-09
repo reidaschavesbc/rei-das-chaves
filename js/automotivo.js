@@ -1,13 +1,24 @@
 const PHONE = '5547991713761';
 
 /* ── Fluxo de cada tipo de serviço (etapas visíveis, em ordem) ── */
-const FLOWS = {
-  perdeu:   ['servico', 'veiculo', 'tipo', 'funcao', 'situacao', 'final'],
-  copia:    ['servico', 'veiculo', 'tipo', 'funcao', 'situacao', 'final'],
-  controle: ['servico', 'veiculo', 'situacao', 'final'],
-  abertura: ['servico', 'veiculo', 'final'],
-  outro:    ['servico', 'veiculo', 'final'],
+/* Carro: pergunta tipo de chave + função. Moto: pergunta se é codificada. */
+const CARRO_FLOWS = {
+  perdeu:   ['categoria', 'servico', 'veiculo', 'tipo', 'funcao', 'situacao', 'final'],
+  copia:    ['categoria', 'servico', 'veiculo', 'tipo', 'funcao', 'situacao', 'final'],
+  controle: ['categoria', 'servico', 'veiculo', 'situacao', 'final'],
+  abertura: ['categoria', 'servico', 'veiculo', 'final'],
+  outro:    ['categoria', 'servico', 'veiculo', 'final'],
 };
+
+const MOTO_FLOWS = {
+  perdeu:   ['categoria', 'servico', 'veiculo_moto', 'codificacao', 'situacao', 'final'],
+  copia:    ['categoria', 'servico', 'veiculo_moto', 'codificacao', 'situacao', 'final'],
+  controle: ['categoria', 'servico', 'veiculo_moto', 'situacao', 'final'],
+  abertura: ['categoria', 'servico', 'veiculo_moto', 'final'],
+  outro:    ['categoria', 'servico', 'veiculo_moto', 'final'],
+};
+
+const CATEGORIA_LABELS = { carro: 'Carro', moto: 'Moto' };
 
 const SERVICO_LABELS = {
   perdeu: 'Perdi todas as chaves',
@@ -29,6 +40,11 @@ const FUNCAO_LABELS = {
   naosei: 'Não sei / quero orientação',
 };
 const CHIP_LABELS = { sim: 'Sim', nao: 'Não', naosei: 'Não sei' };
+const CODIFICACAO_LABELS = {
+  sim: 'Sim, é codificada (tem chip)',
+  nao: 'Não, é chave simples (sem chip)',
+  naosei: 'Não sei',
+};
 const SITUACAO_LABELS = {
   sim: 'Sim, tenho uma chave funcionando',
   perdeu: 'Não, perdi todas',
@@ -52,8 +68,9 @@ if (form) {
   let firstRender = true;
 
   function currentSequence() {
-    const flow = FLOWS[answers.servico];
-    return flow || ['servico'];
+    if (!answers.categoria) return ['categoria'];
+    const flows = answers.categoria === 'moto' ? MOTO_FLOWS : CARRO_FLOWS;
+    return flows[answers.servico] || ['categoria', 'servico'];
   }
 
   function currentStepId() {
@@ -84,6 +101,7 @@ if (form) {
   function validateStep(stepId) {
     showError(stepId, false);
 
+    if (stepId === 'categoria' && !answers.categoria) return showError(stepId, true), false;
     if (stepId === 'servico' && !answers.servico) return showError(stepId, true), false;
 
     if (stepId === 'veiculo') {
@@ -92,8 +110,15 @@ if (form) {
       if (!camposOk || !atendimentoOk) return showError(stepId, true), false;
     }
 
+    if (stepId === 'veiculo_moto') {
+      const camposOk = answers.modelo_moto && answers.cidade_moto && answers.bairro_moto;
+      const atendimentoOk = answers.servico === 'abertura' || !!answers.atendimento_moto;
+      if (!camposOk || !atendimentoOk) return showError(stepId, true), false;
+    }
+
     if (stepId === 'tipo' && !answers.tipo) return showError(stepId, true), false;
     if (stepId === 'funcao' && !answers.funcao) return showError(stepId, true), false;
+    if (stepId === 'codificacao' && !answers.codificacao) return showError(stepId, true), false;
     if (stepId === 'situacao' && !answers.situacao) return showError(stepId, true), false;
 
     if (stepId === 'final') {
@@ -113,6 +138,13 @@ if (form) {
       if (ehAbertura) answers.atendimento = 'local';
     }
 
+    if (stepId === 'veiculo_moto') {
+      const group = form.querySelector('[data-field-group="atendimento-moto"]');
+      const ehAbertura = answers.servico === 'abertura';
+      group.hidden = ehAbertura;
+      if (ehAbertura) answers.atendimento_moto = 'local';
+    }
+
     if (stepId === 'final') {
       const obsField = form.querySelector('[data-field="observacao"]');
       const obsLabel = document.getElementById('obsLabel');
@@ -130,18 +162,30 @@ if (form) {
   /* ── Resumo antes de enviar ── */
   function renderSummary() {
     const seq = currentSequence();
+    const isMoto = answers.categoria === 'moto';
     const rows = [
+      ['Categoria', CATEGORIA_LABELS[answers.categoria]],
       ['Serviço', SERVICO_LABELS[answers.servico]],
-      ['Veículo', [answers.marca, answers.modelo, answers.ano].filter(Boolean).join(' ')],
     ];
+    if (isMoto) {
+      rows.push(['Veículo', [answers.modelo_moto, answers.ano_moto].filter(Boolean).join(' ')]);
+    } else {
+      rows.push(['Veículo', [answers.marca, answers.modelo, answers.ano].filter(Boolean).join(' ')]);
+    }
     if (seq.includes('tipo')) rows.push(['Tipo desejado', TIPO_LABELS[answers.tipo]]);
     if (seq.includes('funcao')) {
       rows.push(['Função', FUNCAO_LABELS[answers.funcao]]);
       if (answers.chip) rows.push(['Chip', CHIP_LABELS[answers.chip]]);
     }
+    if (seq.includes('codificacao')) rows.push(['Chave codificada', CODIFICACAO_LABELS[answers.codificacao]]);
     if (seq.includes('situacao')) rows.push(['Chave funcionando', SITUACAO_LABELS[answers.situacao]]);
-    rows.push(['Local', [answers.cidade, answers.bairro].filter(Boolean).join(' – ')]);
-    if (answers.atendimento) rows.push(['Atendimento', ATENDIMENTO_LABELS[answers.atendimento]]);
+    if (isMoto) {
+      rows.push(['Local', [answers.cidade_moto, answers.bairro_moto].filter(Boolean).join(' – ')]);
+      if (answers.atendimento_moto) rows.push(['Atendimento', ATENDIMENTO_LABELS[answers.atendimento_moto]]);
+    } else {
+      rows.push(['Local', [answers.cidade, answers.bairro].filter(Boolean).join(' – ')]);
+      if (answers.atendimento) rows.push(['Atendimento', ATENDIMENTO_LABELS[answers.atendimento]]);
+    }
 
     summaryList.innerHTML = rows
       .filter(([, valor]) => valor)
@@ -151,7 +195,7 @@ if (form) {
 
   /* ── Barra de progresso ── */
   function updateProgress(seq, stepId) {
-    if (stepId === 'servico' && !answers.servico) {
+    if (stepId === 'categoria' && !answers.categoria) {
       progressText.textContent = 'Vamos começar';
       progressFill.style.width = '0%';
       return;
@@ -216,17 +260,29 @@ if (form) {
   /* ── Monta a mensagem final e abre o WhatsApp ── */
   function buildMessage() {
     const seq = currentSequence();
+    const isMoto = answers.categoria === 'moto';
     const linhas = ['🔑 SOLICITAÇÃO AUTOMOTIVA', ''];
 
     linhas.push(`Cliente: ${answers.nome}`);
-    linhas.push(`Veículo: ${[answers.marca, answers.modelo, answers.ano].filter(Boolean).join(' ')}`);
+    linhas.push(`Categoria: ${CATEGORIA_LABELS[answers.categoria]}`);
+    if (isMoto) {
+      linhas.push(`Veículo: ${[answers.modelo_moto, answers.ano_moto].filter(Boolean).join(' ')}`);
+    } else {
+      linhas.push(`Veículo: ${[answers.marca, answers.modelo, answers.ano].filter(Boolean).join(' ')}`);
+    }
     linhas.push(`Serviço: ${SERVICO_LABELS[answers.servico]}`);
     if (seq.includes('tipo') && answers.tipo) linhas.push(`Tipo desejado: ${TIPO_LABELS[answers.tipo]}`);
     if (seq.includes('funcao') && answers.funcao) linhas.push(`Função: ${FUNCAO_LABELS[answers.funcao]}`);
     if (answers.chip) linhas.push(`Chip: ${CHIP_LABELS[answers.chip]}`);
+    if (seq.includes('codificacao') && answers.codificacao) linhas.push(`Chave codificada: ${CODIFICACAO_LABELS[answers.codificacao]}`);
     if (seq.includes('situacao') && answers.situacao) linhas.push(`Possui chave funcionando: ${SITUACAO_LABELS[answers.situacao]}`);
-    linhas.push(`Local: ${[answers.cidade, answers.bairro].filter(Boolean).join(' – ')}`);
-    if (answers.atendimento) linhas.push(`Atendimento: ${ATENDIMENTO_LABELS[answers.atendimento]}`);
+    if (isMoto) {
+      linhas.push(`Local: ${[answers.cidade_moto, answers.bairro_moto].filter(Boolean).join(' – ')}`);
+      if (answers.atendimento_moto) linhas.push(`Atendimento: ${ATENDIMENTO_LABELS[answers.atendimento_moto]}`);
+    } else {
+      linhas.push(`Local: ${[answers.cidade, answers.bairro].filter(Boolean).join(' – ')}`);
+      if (answers.atendimento) linhas.push(`Atendimento: ${ATENDIMENTO_LABELS[answers.atendimento]}`);
+    }
     if (answers.observacao) linhas.push(`Observação: ${answers.observacao}`);
 
     linhas.push('');
