@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, writeFile, realpath, stat, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, rename, realpath, stat, mkdir } from 'node:fs/promises';
 import { resolve, extname, sep, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes, scrypt, timingSafeEqual, createHash } from 'node:crypto';
@@ -29,7 +29,8 @@ async function body(req) {
 const cookie = (value, age) => `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${production ? '; Secure' : ''}`;
 function getSession(req) {
   const id = (req.headers.cookie || '').split(';').map(p => p.trim()).find(p => p.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
-  if (sessions.get(id) > Date.now()) return id;
+  const session = sessions.get(id);
+  if (session?.expires > Date.now()) return { id, ...session };
   sessions.delete(id); return null;
 }
 async function credentials() { try { return JSON.parse(await readFile(passwordFile, 'utf8')); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } }
@@ -39,10 +40,11 @@ function limitAttempt(req) {
   if (attempt.count >= 10) throw new RequestError('Muitas tentativas. Aguarde 15 minutos antes de tentar novamente.', 429);
   attempt.count++; attempts.set(key, attempt);
 }
-function login(req, res) {
-  attempts.delete(req.socket.remoteAddress); const previous = getSession(req); if (previous) sessions.delete(previous);
-  const id = randomBytes(32).toString('hex'); sessions.set(id, Date.now() + ttl);
-  send(res, 200, { authenticated: true }, { 'Set-Cookie': cookie(id, ttl / 1000) });
+function login(req, res, username = 'admin', mustChangeCredentials = false) {
+  attempts.delete(req.socket.remoteAddress); const previous = getSession(req); if (previous) sessions.delete(previous.id);
+  const id = randomBytes(32).toString('hex'), lifetime = mustChangeCredentials ? 10 * 60000 : ttl;
+  sessions.set(id, { expires: Date.now() + lifetime, username, mustChangeCredentials });
+  send(res, 200, { authenticated: true, username, mustChangeCredentials }, { 'Set-Cookie': cookie(id, lifetime / 1000) });
 }
 async function asset(path, res) {
   if (path === '/') path = '/index.html';
@@ -67,26 +69,51 @@ export const server = http.createServer(async (req, res) => {
     if (!validOrigin) { send(res, 503, { service: 'rei-das-chaves-admin', error: 'O acesso seguro ainda precisa ser configurado.' }); return; }
     if (!['GET', 'POST'].includes(req.method)) throw new RequestError('Método não permitido.', 405);
     if (req.method === 'POST' && req.headers.origin !== origin) throw new RequestError('Origem de acesso inválida.', 403);
-    if (path === '/api/session' && req.method === 'GET') { send(res, 200, { service: 'rei-das-chaves-admin', authenticated: Boolean(getSession(req)), setupRequired: !(await credentials()) }); return; }
+    if (path === '/api/session' && req.method === 'GET') {
+      const session = getSession(req);
+      send(res, 200, { service: 'rei-das-chaves-admin', authenticated: Boolean(session), setupRequired: !(await credentials()), username: session?.username, mustChangeCredentials: Boolean(session?.mustChangeCredentials) }); return;
+    }
     if (['/api/login', '/api/setup'].includes(path) && req.method === 'POST') {
       limitAttempt(req); const data = await body(req), current = await credentials();
-      if (typeof data.password !== 'string' || data.password.length < 12 || data.password.length > 256) throw new RequestError('Use uma senha de 12 a 256 caracteres.');
+      if (typeof data.password !== 'string' || !data.password.length || data.password.length > 256 || typeof data.username !== 'string') throw new RequestError('Informe seu usuário e sua senha.');
       if (path === '/api/setup') {
         if (current) throw new RequestError('O acesso já foi configurado.', 409);
         const actual = createHash('sha256').update(typeof data.token === 'string' ? data.token : '').digest('hex');
         if (!/^[a-f0-9]{64}$/.test(setupHash) || !timingSafeEqual(Buffer.from(actual), Buffer.from(setupHash))) throw new RequestError('Convite de ativação inválido.', 403);
-        const salt = randomBytes(16).toString('hex'), hash = (await derive(data.password, salt, 64)).toString('hex');
-        await mkdir(privateRoot, { recursive: true, mode: 0o700 });
-        try { await writeFile(passwordFile, JSON.stringify({ salt, hash }), { flag: 'wx', mode: 0o600 }); }
-        catch (e) { if (e.code === 'EEXIST') throw new RequestError('O acesso já foi configurado.', 409); throw e; }
+        if (data.username !== 'admin' || data.password !== 'admin') throw new RequestError('No primeiro acesso, use o usuário admin e a senha admin.', 401);
+        login(req, res, 'admin', true); return;
       } else {
         if (!current) throw new RequestError('Use o convite de ativação para definir sua senha.', 403);
-        if (!timingSafeEqual(await derive(data.password, current.salt, 64), Buffer.from(current.hash, 'hex'))) throw new RequestError('Senha inválida.', 401);
+        const actual = await derive(data.password, current.salt, 64);
+        if (!timingSafeEqual(actual, Buffer.from(current.hash, 'hex')) || data.username !== (current.username || 'admin')) throw new RequestError('Usuário ou senha inválidos.', 401);
       }
-      login(req, res); return;
+      login(req, res, current.username || 'admin'); return;
     }
     const session = getSession(req); if (!session) throw new RequestError('Sua sessão expirou. Entre novamente para continuar.', 401);
-    if (path === '/api/logout' && req.method === 'POST') { sessions.delete(session); send(res, 200, { authenticated: false }, { 'Set-Cookie': cookie('', 0) }); return; }
+    if (path === '/api/logout' && req.method === 'POST') { sessions.delete(session.id); send(res, 200, { authenticated: false }, { 'Set-Cookie': cookie('', 0) }); return; }
+    if (path === '/api/account' && req.method === 'POST') {
+      limitAttempt(req);
+      const data = await body(req), current = await credentials();
+      if (typeof data.username !== 'string' || !/^[a-zA-Z0-9._-]{3,40}$/.test(data.username)) throw new RequestError('Use um usuário de 3 a 40 letras, números, pontos, traços ou sublinhados.');
+      if (typeof data.password !== 'string' || data.password.length < 12 || data.password.length > 256) throw new RequestError('A nova senha deve ter de 12 a 256 caracteres.');
+      if (session.mustChangeCredentials) {
+        if (current) throw new RequestError('O primeiro acesso já foi concluído. Entre com as credenciais definidas.', 409);
+      } else {
+        if (!current || typeof data.currentPassword !== 'string' || data.currentPassword.length > 256 || !timingSafeEqual(await derive(data.currentPassword, current.salt, 64), Buffer.from(current.hash, 'hex'))) throw new RequestError('A senha atual está incorreta.');
+      }
+      const salt = randomBytes(16).toString('hex'), hash = (await derive(data.password, salt, 64)).toString('hex');
+      await mkdir(privateRoot, { recursive: true, mode: 0o700 });
+      const value = JSON.stringify({ username: data.username, salt, hash });
+      if (session.mustChangeCredentials) {
+        try { await writeFile(passwordFile, value, { flag: 'wx', mode: 0o600 }); }
+        catch (e) { if (e.code === 'EEXIST') throw new RequestError('O primeiro acesso já foi concluído.', 409); throw e; }
+      } else {
+        const temp = passwordFile + '.' + randomBytes(12).toString('hex');
+        await writeFile(temp, value, { flag: 'wx', mode: 0o600 }); await rename(temp, passwordFile);
+      }
+      sessions.clear(); login(req, res, data.username); return;
+    }
+    if (session.mustChangeCredentials) throw new RequestError('Defina seu usuário e uma nova senha antes de acessar os produtos.', 403);
     if (path === '/api/products' && req.method === 'GET') { const data = await store.snapshot(); send(res, 200, { revision: data.revision, products: data.products }); return; }
     if (path === '/api/prices' && req.method === 'POST') {
       const data = await body(req); try { send(res, 200, await store.save(data)); } catch (e) { throw new RequestError(e.message, e.status || 400); } return;
@@ -95,5 +122,5 @@ export const server = http.createServer(async (req, res) => {
   } catch (e) { send(res, e.status || 500, { error: e.status ? e.message : 'Não foi possível concluir. Atualize a lista e confira os preços antes de tentar novamente.' }); }
 });
 server.requestTimeout = 30000; server.headersTimeout = 15000;
-setInterval(() => { const now = Date.now(); for (const [id, exp] of sessions) if (exp < now) sessions.delete(id); for (const [key, a] of attempts) if (a.until < now) attempts.delete(key); }, 60000).unref();
+setInterval(() => { const now = Date.now(); for (const [id, session] of sessions) if (session.expires < now) sessions.delete(id); for (const [key, a] of attempts) if (a.until < now) attempts.delete(key); }, 60000).unref();
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) server.listen(port, process.env.HOST || '127.0.0.1', () => console.log(`Painel iniciado na porta ${port}.`));

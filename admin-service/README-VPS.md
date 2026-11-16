@@ -16,7 +16,11 @@ O site e o painel funcionam em um serviço separado do Sistema Chaveiro, sem ban
 
 ## Primeiro acesso
 
-Após apontar o DNS e ativar HTTPS, o responsável recebe um link de ativação com um token de uso único. Define sua própria senha (mínimo de 12 caracteres) na tela e não precisa enviá-la no chat. O convite deixa de funcionar quando o acesso é criado. O token fica no fragmento do link e é removido da barra antes das chamadas de API.
+Após apontar o DNS e ativar HTTPS, o responsável recebe um link de ativação. No primeiro acesso, entra com usuário `admin` e senha `admin`. Essa combinação é aceita apenas com o convite, e libera somente a tela obrigatória de definição de usuário e nova senha (mínimo de 12 caracteres). Não dá acesso aos produtos até essa troca. O convite deixa de funcionar quando o acesso definitivo é criado; `admin/admin` não permanece como credencial de produção.
+
+O token do convite fica no fragmento do link e é removido da barra antes das chamadas de API. É conservado em `sessionStorage` apenas na mesma aba para sobreviver a uma atualização da página, e apagado quando a configuração termina. Quando não há convite, a tela explica como reabrir o primeiro acesso sem deixar o botão desativado. Chamadas de API têm limite de espera de 12 segundos.
+
+Depois do login, **Minha conta** permite alterar usuário e senha mediante confirmação da senha atual. A alteração invalida as outras sessões. Credenciais no formato antigo (somente senha) continuam aceitas com usuário `admin`, preservando o hash existente.
 
 O serviço tem sessão HttpOnly/Secure/SameSite, verificação de origem, limite de tentativas e não permite uma segunda criação da senha. Reiniciar o serviço invalida as sessões. O painel não deve ser habilitado em HTTP aberto.
 
@@ -41,7 +45,7 @@ O backup das versões na própria VPS protege de alterações acidentais, mas n�
 Node.js 20 ou superior, sem dependências adicionais. Os testes usam HTTP e arquivos temporários em Linux; não usam navegador nem alteram dados reais:
 
 ```sh
-SITE_SOURCE=/caminho/dos/arquivos/publicos node --test admin-service/catalog.test.mjs admin-service/vps.test.mjs
+SITE_SOURCE=/caminho/dos/arquivos/publicos node --test admin-service/catalog.test.mjs admin-service/vps.test.mjs admin-service/login-ui.test.mjs
 ```
 
 Não compartilhar `private/`, o convite ou os arquivos de ambiente no GitHub. O Nginx não deve entregar arquivos ocultos, o código de servidor, `release.json` nem diretórios privados.

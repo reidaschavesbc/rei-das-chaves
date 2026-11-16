@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Painel de produtos | Rei das Chaves</title>
   <link rel="icon" href="/image/favicon-32x32.png">
-  <link rel="stylesheet" href="/admin/admin.css?v=20261116-2">
-  <script src="/admin/admin.js" defer></script>
+  <link rel="stylesheet" href="/admin/admin.css?v=20261116-3">
+  <script src="/admin/admin.js?v=20261116-3" defer></script>
 </head>
 <body>
   <section id="login" class="login-shell" hidden>
@@ -18,8 +18,12 @@
         <p id="login-description">Entre para gerenciar os preços dos produtos.</p>
       </header>
       <div class="login-field">
+        <label for="username">Usuário</label>
+        <input id="username" name="username" autocomplete="username" required maxlength="40" value="admin" spellcheck="false" autocapitalize="none">
+      </div>
+      <div class="login-field">
         <label for="password">Senha de acesso</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="256">
+        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256">
       </div>
       <div id="password-repeat-group" class="login-field" hidden>
         <label for="password-repeat">Repita sua senha</label>
@@ -27,6 +31,23 @@
       </div>
       <button class="primary" type="submit">Entrar no painel</button>
       <p id="login-message" role="status"></p>
+    </form>
+  </section>
+
+  <section id="account-screen" class="login-shell" hidden>
+    <form id="account-form" class="login-card">
+      <header class="login-heading">
+        <img src="/image/logo.png" alt="Rei das Chaves" width="144" height="144">
+        <h1>Seu acesso</h1>
+        <p id="account-description">Altere seu usuário e sua senha de acesso.</p>
+      </header>
+      <div class="login-field"><label for="account-username">Usuário</label><input id="account-username" name="username" autocomplete="username" required minlength="3" maxlength="40" pattern="[a-zA-Z0-9._-]{3,40}" autocapitalize="none" spellcheck="false"></div>
+      <div id="current-password-group" class="login-field"><label for="current-password">Senha atual</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" maxlength="256"></div>
+      <div class="login-field"><label for="new-password">Nova senha</label><input id="new-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="256"><small>Use pelo menos 12 caracteres.</small></div>
+      <div class="login-field"><label for="new-password-repeat">Repita a nova senha</label><input id="new-password-repeat" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></div>
+      <button class="primary" type="submit">Salvar meu acesso</button>
+      <button id="account-back" class="secondary" type="button">Voltar aos produtos</button>
+      <p id="account-message" class="account-message" role="status" aria-live="polite"></p>
     </form>
   </section>
 
@@ -38,7 +59,7 @@
       <div class="sidebar-footer"><a href="/" target="_blank" rel="noopener">Ver site da loja ↗</a></div>
     </aside>
     <main>
-      <header class="topbar"><span>Administração da loja</span><span class="account"><span class="account-dot"></span>Rei das Chaves <button id="logout" class="text-button">Sair</button></span></header>
+      <header class="topbar"><span>Administração da loja</span><span class="account"><span class="account-dot"></span><span id="account-name">admin</span><button id="account-settings" class="text-button">Minha conta</button><button id="logout" class="text-button">Sair</button></span></header>
       <div class="content">
         <div id="mode-notice" class="notice" hidden></div>
         <div class="heading"><div><h1>Produtos</h1><p>Encontre a fechadura e atualize o preço.</p></div><button id="reload" class="secondary">Atualizar lista</button></div>

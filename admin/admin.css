@@ -71,6 +71,11 @@
 .login-card > .primary { width: 100%; min-height: 50px; margin-top: 2px; border-radius: 8px; }
 .login-card #login-message { color: #a72e27; font-size: 13px; text-align: center; }
 .login-card #login-message:empty { display: none; }
+.login-card .account-message { color: #a72e27; font-size: 13px; text-align: center; }
+.login-card .account-message:empty { display: none; }
+.login-field small { color: var(--muted); font-size: 12px; }
+.login-card button:disabled { cursor: progress; }
+.account .text-button { min-height: 38px; padding: 0 6px; }
 @media (max-width: 480px) {
   .login-shell { padding: 24px 16px; }
   .login-card { padding: 28px 24px 30px; gap: 20px; }

@@ -10,9 +10,14 @@
   const decimal = (value) => (value / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, useGrouping: false });
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
-  let setup = false;
-  const activationToken = new URLSearchParams(location.hash.slice(1)).get('ativar') || '';
-  if (activationToken) history.replaceState(null, '', location.pathname + location.search);
+  let setup = false, accountRequired = false, username = 'admin';
+  const suppliedToken = new URLSearchParams(location.hash.slice(1)).get('ativar') || '';
+  let activationToken = suppliedToken;
+  try {
+    if (suppliedToken) sessionStorage.setItem('rdc_activation_token', suppliedToken);
+    else activationToken = sessionStorage.getItem('rdc_activation_token') || '';
+  } catch { /* An unavailable session store does not invalidate the supplied invitation. */ }
+  if (suppliedToken) history.replaceState(null, '', location.pathname + location.search);
   const pending = new Map();
   const errors = new Set();
   const node = (tag, className, text) => {
@@ -23,11 +28,11 @@
   };
   async function api(path, options = {}) {
     let response;
-    try { response = await fetch(`/api/${path}`, { credentials: 'same-origin', ...options, headers: { 'Content-Type': 'application/json', ...options.headers } }); }
-    catch { throw new Error('Não foi possível conectar. Confira sua internet e tente novamente.'); }
+    try { response = await fetch(`/api/${path}`, { credentials: 'same-origin', signal: AbortSignal.timeout(12000), ...options, headers: { 'Content-Type': 'application/json', ...options.headers } }); }
+    catch (error) { throw new Error(['TimeoutError', 'AbortError'].includes(error.name) ? 'A conexão demorou demais. Tente entrar novamente.' : 'Não foi possível conectar. Confira sua internet e tente novamente.'); }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      if (response.status === 401 && path !== 'login') { $('dashboard').hidden = true; $('login').hidden = false; }
+      if (response.status === 401 && path !== 'login') { $('dashboard').hidden = true; $('account-screen').hidden = true; $('login').hidden = false; }
       throw new Error(data.error || 'O painel está indisponível. Tente novamente em instantes.');
     }
     return data;
@@ -155,34 +160,64 @@
     try { await api('logout', { method: 'POST', body: '{}' }); pending.clear(); errors.clear(); location.reload(); }
     catch (error) { message(error.message, true); }
   });
-  $('login-form').addEventListener('submit', async event => {
-    event.preventDefault(); const button = event.currentTarget.querySelector('button'); button.disabled = true; $('login-message').textContent = '';
+  function openAccount(required = false) {
+    accountRequired = required;
+    $('account-form').reset(); $('account-username').value = username;
+    $('account-description').textContent = required ? 'Antes de acessar os produtos, escolha uma nova senha para substituir o acesso inicial.' : 'Altere seu usuário e sua senha de acesso.';
+    $('current-password-group').hidden = required; $('current-password').required = !required;
+    $('account-back').hidden = required; $('account-message').textContent = '';
+    $('dashboard').hidden = true; $('login').hidden = true; $('account-screen').hidden = false;
+    $('account-username').focus();
+  }
+  async function authenticated(data) {
+    username = data.username || 'admin'; $('account-name').textContent = username;
+    if (data.mustChangeCredentials) { openAccount(true); return; }
+    $('login').hidden = true; $('account-screen').hidden = true; $('dashboard').hidden = false;
+    await load();
+  }
+  $('account-settings').addEventListener('click', () => openAccount(false));
+  $('account-back').addEventListener('click', () => { $('account-screen').hidden = true; $('dashboard').hidden = false; });
+  $('account-form').addEventListener('submit', async event => {
+    event.preventDefault(); const button = event.currentTarget.querySelector('button');
+    button.disabled = true; button.textContent = 'Salvando…'; $('account-message').textContent = '';
     try {
-      if (setup && $('password').value !== $('password-repeat').value) throw new Error('As duas senhas precisam ser iguais.');
-      await api(setup ? 'setup' : 'login', { method: 'POST', body: JSON.stringify({ password: $('password').value, ...(setup ? { token: activationToken } : {}) }) });
-      $('password').value = ''; $('password-repeat').value = ''; $('login').hidden = true; $('dashboard').hidden = false; await load();
+      if ($('new-password').value !== $('new-password-repeat').value) throw new Error('As duas senhas precisam ser iguais.');
+      const data = await api('account', { method: 'POST', body: JSON.stringify({ username: $('account-username').value.trim(), password: $('new-password').value, ...(!accountRequired ? { currentPassword: $('current-password').value } : {}) }) });
+      $('account-form').reset();
+      try { sessionStorage.removeItem('rdc_activation_token'); } catch {}
+      activationToken = ''; setup = false;
+      if (accountRequired) await authenticated(data);
+      else { username = data.username; $('account-name').textContent = username; $('account-screen').hidden = true; $('dashboard').hidden = false; }
+      message('Usuário e senha salvos. Use esses dados nos próximos acessos.');
+    } catch (error) { $('account-message').textContent = error.message; }
+    finally { button.disabled = false; button.textContent = 'Salvar meu acesso'; }
+  });
+  $('login-form').addEventListener('submit', async event => {
+    event.preventDefault(); const button = event.currentTarget.querySelector('button'); button.disabled = true; button.textContent = 'Entrando…'; $('login-message').textContent = '';
+    try {
+      if (setup && !activationToken) throw new Error('Reabra o link de primeiro acesso enviado nesta conversa e entre com admin / admin.');
+      const data = await api(setup ? 'setup' : 'login', { method: 'POST', body: JSON.stringify({ username: $('username').value.trim(), password: $('password').value, ...(setup ? { token: activationToken } : {}) }) });
+      $('password').value = ''; await authenticated(data);
     }
     catch (error) { $('login-message').textContent = error.message; }
-    finally { button.disabled = false; }
+    finally { button.disabled = false; button.textContent = 'Entrar no painel'; }
   });
   window.addEventListener('beforeunload', event => { if (pending.size) { event.preventDefault(); event.returnValue = ''; } });
   async function start() {
     try {
-      const response = await fetch('/api/session', { credentials: 'same-origin', cache: 'no-store' });
+      const response = await fetch('/api/session', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(12000) });
       const data = await response.json().catch(() => null);
       if (data?.service === 'rei-das-chaves-admin' && response.ok) {
-        if (data.authenticated) { $('dashboard').hidden = false; await load(); }
+        if (data.authenticated) await authenticated(data);
         else {
           $('login').hidden = false;
           if (data.setupRequired) {
+            setup = true;
             if (activationToken) {
-              setup = true; $('login-title').textContent = 'Defina sua senha.';
-              $('login-description').textContent = 'Escolha uma senha de pelo menos 12 caracteres para acessar seu painel.';
-              $('password').autocomplete = 'new-password'; $('password-repeat-group').hidden = false; $('password-repeat').required = true;
-              $('login-form').querySelector('button').textContent = 'Criar meu acesso';
+              $('login-title').textContent = 'Primeiro acesso';
+              $('login-description').textContent = 'Entre com o usuário admin e a senha admin. Na próxima tela, defina seu acesso.';
             } else {
               $('login-message').textContent = 'O primeiro acesso precisa do convite de ativação enviado ao responsável pela loja.';
-              $('login-form').querySelector('button').disabled = true;
             }
           }
           $('password').focus();
@@ -192,7 +227,7 @@
       if (response.status >= 500 && data?.service === 'rei-das-chaves-admin') throw new Error(data.error);
       preview = true; $('dashboard').hidden = false; $('mode-notice').hidden = false;
       $('mode-notice').textContent = 'Prévia do painel. As fotos e os preços são do seu catálogo. A edição ficará disponível após a ativação do acesso seguro.';
-      $('logout').hidden = true; await load();
+      $('logout').hidden = true; $('account-settings').hidden = true; await load();
     } catch (error) { $('login').hidden = false; $('login-message').textContent = error.message || 'Não foi possível conectar ao painel.'; }
   }
   start();
