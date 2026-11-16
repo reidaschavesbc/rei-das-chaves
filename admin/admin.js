@@ -10,7 +10,7 @@
   const decimal = (value) => (value / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, useGrouping: false });
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
-  let setup = false, accountRequired = false, username = 'admin';
+  let setup = false, accountRequired = false, username = 'admin', invitationReady = false;
   const suppliedToken = new URLSearchParams(location.hash.slice(1)).get('ativar') || '';
   let activationToken = suppliedToken;
   try {
@@ -195,7 +195,7 @@
   $('login-form').addEventListener('submit', async event => {
     event.preventDefault(); const button = event.currentTarget.querySelector('button'); button.disabled = true; button.textContent = 'Entrando…'; $('login-message').textContent = '';
     try {
-      if (setup && !activationToken) throw new Error('Reabra o link de primeiro acesso enviado nesta conversa e entre com admin / admin.');
+      if (setup && !activationToken && !invitationReady) throw new Error('Abra o link de primeiro acesso enviado nesta conversa. Depois entre com admin / admin.');
       const data = await api(setup ? 'setup' : 'login', { method: 'POST', body: JSON.stringify({ username: $('username').value.trim(), password: $('password').value, ...(setup ? { token: activationToken } : {}) }) });
       $('password').value = ''; await authenticated(data);
     }
@@ -213,7 +213,8 @@
           $('login').hidden = false;
           if (data.setupRequired) {
             setup = true;
-            if (activationToken) {
+            invitationReady = Boolean(data.invitationReady);
+            if (activationToken || invitationReady) {
               $('login-title').textContent = 'Primeiro acesso';
               $('login-description').textContent = 'Entre com o usuário admin e a senha admin. Na próxima tela, defina seu acesso.';
             } else {

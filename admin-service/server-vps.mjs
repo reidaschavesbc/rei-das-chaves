@@ -15,6 +15,7 @@ const setupHash = process.env.ADMIN_SETUP_TOKEN_SHA256 || '';
 const validOrigin = Boolean(origin && (!production || origin.startsWith('https://')));
 const sessions = new Map(), attempts = new Map(), ttl = 4 * 60 * 60 * 1000;
 const cookieName = production ? '__Host-rdc_admin' : 'rdc_admin';
+const invitationCookieName = production ? '__Host-rdc_invite' : 'rdc_invite';
 class RequestError extends Error { constructor(message, status = 400) { super(message); this.status = status; } }
 function send(res, status, value, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers }); res.end(JSON.stringify(value));
@@ -27,6 +28,15 @@ async function body(req) {
   catch { throw new RequestError('Dados inválidos.'); }
 }
 const cookie = (value, age) => `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${production ? '; Secure' : ''}`;
+const invitationCookie = (value, age) => `${invitationCookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${production ? '; Secure' : ''}`;
+function validInvitation(value) {
+  if (typeof value !== 'string' || !value || !/^[a-f0-9]{64}$/.test(setupHash)) return false;
+  const actual = createHash('sha256').update(value).digest('hex');
+  return timingSafeEqual(Buffer.from(actual), Buffer.from(setupHash));
+}
+function invitationFromCookie(req) {
+  return (req.headers.cookie || '').split(';').map(p => p.trim()).find(p => p.startsWith(`${invitationCookieName}=`))?.slice(invitationCookieName.length + 1) || '';
+}
 function getSession(req) {
   const id = (req.headers.cookie || '').split(';').map(p => p.trim()).find(p => p.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
   const session = sessions.get(id);
@@ -64,6 +74,13 @@ export const server = http.createServer(async (req, res) => {
   if (production) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   try {
     const path = new URL(req.url, 'http://localhost').pathname;
+    if (path.startsWith('/admin/ativar/') && req.method === 'GET') {
+      const invitation = path.slice('/admin/ativar/'.length);
+      const configured = await credentials();
+      if (!configured && !validInvitation(invitation)) throw new RequestError('O link de primeiro acesso é inválido.', 403);
+      res.writeHead(303, { Location: '/admin/', 'Cache-Control': 'no-store', 'Set-Cookie': invitationCookie(configured ? '' : invitation, configured ? 0 : ttl / 1000) });
+      res.end(); return;
+    }
     if (path === '/healthz' && req.method === 'GET') { await store.snapshot(); send(res, 200, { service: 'rei-das-chaves-admin', ready: true }); return; }
     if (!path.startsWith('/api/')) { if (req.method !== 'GET') throw new RequestError('Método não permitido.', 405); await asset(path, res); return; }
     if (!validOrigin) { send(res, 503, { service: 'rei-das-chaves-admin', error: 'O acesso seguro ainda precisa ser configurado.' }); return; }
@@ -71,15 +88,15 @@ export const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.headers.origin !== origin) throw new RequestError('Origem de acesso inválida.', 403);
     if (path === '/api/session' && req.method === 'GET') {
       const session = getSession(req);
-      send(res, 200, { service: 'rei-das-chaves-admin', authenticated: Boolean(session), setupRequired: !(await credentials()), username: session?.username, mustChangeCredentials: Boolean(session?.mustChangeCredentials) }); return;
+      const configured = await credentials();
+      send(res, 200, { service: 'rei-das-chaves-admin', authenticated: Boolean(session), setupRequired: !configured, invitationReady: !configured && validInvitation(invitationFromCookie(req)), username: session?.username, mustChangeCredentials: Boolean(session?.mustChangeCredentials) }); return;
     }
     if (['/api/login', '/api/setup'].includes(path) && req.method === 'POST') {
       limitAttempt(req); const data = await body(req), current = await credentials();
       if (typeof data.password !== 'string' || !data.password.length || data.password.length > 256 || typeof data.username !== 'string') throw new RequestError('Informe seu usuário e sua senha.');
       if (path === '/api/setup') {
         if (current) throw new RequestError('O acesso já foi configurado.', 409);
-        const actual = createHash('sha256').update(typeof data.token === 'string' ? data.token : '').digest('hex');
-        if (!/^[a-f0-9]{64}$/.test(setupHash) || !timingSafeEqual(Buffer.from(actual), Buffer.from(setupHash))) throw new RequestError('Convite de ativação inválido.', 403);
+        if (!validInvitation(data.token) && !validInvitation(invitationFromCookie(req))) throw new RequestError('Convite de ativação inválido.', 403);
         if (data.username !== 'admin' || data.password !== 'admin') throw new RequestError('No primeiro acesso, use o usuário admin e a senha admin.', 401);
         login(req, res, 'admin', true); return;
       } else {

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const code = await readFile(process.env.FRONTEND_SOURCE || new URL('../admin/admin.js', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-function page({ token = '', storage = new Map(), request } = {}) {
+function page({ token = '', storage = new Map(), request, invitationReady = false } = {}) {
   const elements = new Map();
   const make = () => ({ hidden: false, disabled: false, value: '', textContent: '', events: {}, classList: { toggle() {}, add() {}, remove() {} }, addEventListener(event, handler) { this.events[event] = handler; }, querySelector() { return this.button ||= make(); }, focus() {}, reset() {}, setAttribute() {}, replaceChildren() {}, append() {}, showModal() {}, close() {} });
   const get = id => { if (!elements.has(id)) elements.set(id, make()); return elements.get(id); };
@@ -16,7 +16,7 @@ function page({ token = '', storage = new Map(), request } = {}) {
     sessionStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     URLSearchParams, AbortSignal,
     fetch: async (url, options) => {
-      if (url === '/api/session') return { ok: true, status: 200, json: async () => ({ service: 'rei-das-chaves-admin', authenticated: false, setupRequired: true }) };
+      if (url === '/api/session') return { ok: true, status: 200, json: async () => ({ service: 'rei-das-chaves-admin', authenticated: false, setupRequired: true, invitationReady }) };
       return request(url, options);
     }
   };
@@ -29,7 +29,7 @@ test('a ausência de convite apresenta uma orientação e não deixa o botão pr
   assert.equal(button.disabled, false);
   await ui.get('login-form').events.submit({ preventDefault() {}, currentTarget: ui.get('login-form') });
   assert.equal(button.disabled, false);
-  assert.match(ui.get('login-message').textContent, /Reabra o link/);
+  assert.match(ui.get('login-message').textContent, /Abra o link/);
 });
 test('o convite permanece disponível ao atualizar a página na mesma aba', async () => {
   const storage = new Map(); page({ token: 'fixture-invitation', storage }); await tick();
@@ -58,4 +58,15 @@ test('admin/admin envia o convite e leva à troca obrigatória antes de mostrar 
   assert.equal(ui.get('dashboard').hidden, true);
   assert.equal(ui.get('account-screen').hidden, false);
   assert.equal(ui.get('account-back').hidden, true);
+});
+test('convite no cookie permite entrar em uma URL normal, sem fragmento e sem sessionStorage', async () => {
+  let submitted = false;
+  const ui = page({ invitationReady: true, request: async (url, options) => {
+    assert.equal(url, '/api/setup'); submitted = true;
+    const body = JSON.parse(options.body); assert.equal(body.username, 'admin'); assert.equal(body.password, 'admin');
+    return { ok: true, status: 200, json: async () => ({ authenticated: true, username: 'admin', mustChangeCredentials: true }) };
+  } }); await tick();
+  ui.get('username').value = 'admin'; ui.get('password').value = 'admin';
+  await ui.get('login-form').events.submit({ preventDefault() {}, currentTarget: ui.get('login-form') });
+  assert.equal(submitted, true); assert.equal(ui.get('account-screen').hidden, false);
 });

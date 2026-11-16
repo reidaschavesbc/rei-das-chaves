@@ -49,7 +49,14 @@ test('API protege login, ativação, CSRF, arquivos privados e revogação da se
     const initial = { token: setupToken, username: 'admin', password: 'admin' };
     assert.equal((await post('/api/setup', initial, '', 'https://attacker.invalid')).status, 403);
     assert.equal((await post('/api/setup', { ...initial, token: 'wrong' })).status, 403);
-    const activation = await post('/api/setup', initial);
+    assert.equal((await fetch(url + '/admin/ativar/invalid', { redirect: 'manual' })).status, 403);
+    const entry = await fetch(url + '/admin/ativar/' + setupToken, { redirect: 'manual' });
+    assert.equal(entry.status, 303); assert.equal(entry.headers.get('location'), '/admin/');
+    assert.match(entry.headers.get('set-cookie'), /HttpOnly/);
+    const invitation = entry.headers.get('set-cookie').split(';')[0];
+    const invitedState = await fetch(url + '/api/session', { headers: { Cookie: invitation } });
+    assert.equal((await invitedState.json()).invitationReady, true);
+    const activation = await post('/api/setup', { username: 'admin', password: 'admin' }, invitation);
     assert.equal(activation.status, 200);
     let cookie = activation.headers.get('set-cookie').split(';')[0];
     assert.match(activation.headers.get('set-cookie'), /HttpOnly/); assert.match(activation.headers.get('set-cookie'), /SameSite=Strict/);
