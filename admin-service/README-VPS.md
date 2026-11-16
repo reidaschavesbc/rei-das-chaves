@@ -11,6 +11,7 @@ O site e o painel funcionam em um serviço separado do Sistema Chaveiro, sem ban
 - Credencial derivada: `private/password.json`, com acesso restrito. A senha original não é gravada.
 - Serviço: `reidaschaves-site.service`, porta interna `127.0.0.1:3010`.
 - Configuração Nginx própria: `zz-reidaschaves-site`. O tráfego público de imagens, HTML e vídeos é entregue pelo Nginx; somente `/admin/` e `/api/` usam Node.js.
+- HTTPS próprio para o domínio e `www`, com redirecionamento para o domínio principal. Configuração final em `nginx-https.conf`; `nginx-http.conf` é somente a preparação anterior ao HTTPS.
 - Limites planejados: 192 MB máximos de RAM, 128 MB de faixa preferencial, 25% de um núcleo, 64 tarefas. O site compartilha o host e o Nginx com o sistema; isso não constitui isolamento físico.
 
 ## Primeiro acesso
@@ -18,6 +19,14 @@ O site e o painel funcionam em um serviço separado do Sistema Chaveiro, sem ban
 Após apontar o DNS e ativar HTTPS, o responsável recebe um link de ativação com um token de uso único. Define sua própria senha (mínimo de 12 caracteres) na tela e não precisa enviá-la no chat. O convite deixa de funcionar quando o acesso é criado. O token fica no fragmento do link e é removido da barra antes das chamadas de API.
 
 O serviço tem sessão HttpOnly/Secure/SameSite, verificação de origem, limite de tentativas e não permite uma segunda criação da senha. Reiniciar o serviço invalida as sessões. O painel não deve ser habilitado em HTTP aberto.
+
+## Renovação do HTTPS
+
+O certificado e a conta da autoridade certificadora ficam em `/etc/reidaschaves-site/letsencrypt`, separados do Sistema Chaveiro. A emissão inicial usou TXT temporários para permitir preparar o HTTPS antes da troca do DNS. Após a troca, a configuração foi convertida para validação HTTP pelo diretório `/var/lib/reidaschaves-site/acme`, com simulação de renovação aprovada.
+
+O timer independente `reidaschaves-site-cert-renew.timer` executa `reidaschaves-site-cert-renew.service` duas vezes ao dia, com atraso aleatório. O hook `/etc/reidaschaves-site/reload-nginx-after-renewal.sh` testa o Nginx antes de recarregar o certificado. Não altera a renovação do Sistema Chaveiro. Logs: `/var/log/reidaschaves-site-acme`.
+
+Os TXT `_acme-challenge` e `_acme-challenge.www` podem ser removidos do painel do domínio depois da emissão: a renovação automática não depende deles.
 
 ## Atualização e reversão
 
