@@ -972,3 +972,17 @@ footer p { color: var(--text-muted); font-size: 13px; }
 footer .footer-privacy { margin-top: 8px; }
 .footer-privacy a { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 8px; color: var(--gold-mid); text-decoration: underline; text-underline-offset: 4px; line-height: 1.6; }
 .footer-privacy a:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+/* rei-fundo-cinza: fundo aprovado, sem alterar o menu. */
+body {
+  background-color: #171b1e;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.13' filter='url(%23n)'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(115deg, transparent 0px, transparent 28px, #ffffff03 29px, transparent 30px),
+    radial-gradient(ellipse 100% 60% at 10% 0%, #6c62552b, transparent 75%),
+    linear-gradient(110deg, #0f1316 0%, #22282b 46%, #12171a 100%);
+  background-size: 180px 180px, auto, auto, auto;
+  background-attachment: fixed;
+}
+body::before { display: none; }
+.hero-blobs { display: none; }
