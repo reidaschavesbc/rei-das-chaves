@@ -10,14 +10,9 @@
   const decimal = (value) => (value / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, useGrouping: false });
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
-  let setup = false, accountRequired = false, username = 'admin', invitationReady = false;
-  const suppliedToken = new URLSearchParams(location.hash.slice(1)).get('ativar') || '';
-  let activationToken = suppliedToken;
-  try {
-    if (suppliedToken) sessionStorage.setItem('rdc_activation_token', suppliedToken);
-    else activationToken = sessionStorage.getItem('rdc_activation_token') || '';
-  } catch { /* An unavailable session store does not invalidate the supplied invitation. */ }
-  if (suppliedToken) history.replaceState(null, '', location.pathname + location.search);
+  let username = 'admin';
+  try { sessionStorage.removeItem('rdc_activation_token'); } catch {}
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   const pending = new Map();
   const errors = new Set();
   const node = (tag, className, text) => {
@@ -160,34 +155,29 @@
     try { await api('logout', { method: 'POST', body: '{}' }); pending.clear(); errors.clear(); location.reload(); }
     catch (error) { message(error.message, true); }
   });
-  function openAccount(required = false) {
-    accountRequired = required;
+  function openAccount() {
     $('account-form').reset(); $('account-username').value = username;
-    $('account-description').textContent = required ? 'Antes de acessar os produtos, escolha uma nova senha para substituir o acesso inicial.' : 'Altere seu usuário e sua senha de acesso.';
-    $('current-password-group').hidden = required; $('current-password').required = !required;
-    $('account-back').hidden = required; $('account-message').textContent = '';
+    $('account-description').textContent = 'Altere seu usuário e sua senha de acesso.';
+    $('current-password-group').hidden = false; $('current-password').required = true;
+    $('account-back').hidden = false; $('account-message').textContent = '';
     $('dashboard').hidden = true; $('login').hidden = true; $('account-screen').hidden = false;
     $('account-username').focus();
   }
   async function authenticated(data) {
     username = data.username || 'admin'; $('account-name').textContent = username;
-    if (data.mustChangeCredentials) { openAccount(true); return; }
     $('login').hidden = true; $('account-screen').hidden = true; $('dashboard').hidden = false;
     await load();
   }
-  $('account-settings').addEventListener('click', () => openAccount(false));
+  $('account-settings').addEventListener('click', openAccount);
   $('account-back').addEventListener('click', () => { $('account-screen').hidden = true; $('dashboard').hidden = false; });
   $('account-form').addEventListener('submit', async event => {
     event.preventDefault(); const button = event.currentTarget.querySelector('button');
     button.disabled = true; button.textContent = 'Salvando…'; $('account-message').textContent = '';
     try {
       if ($('new-password').value !== $('new-password-repeat').value) throw new Error('As duas senhas precisam ser iguais.');
-      const data = await api('account', { method: 'POST', body: JSON.stringify({ username: $('account-username').value.trim(), password: $('new-password').value, ...(!accountRequired ? { currentPassword: $('current-password').value } : {}) }) });
+      const data = await api('account', { method: 'POST', body: JSON.stringify({ username: $('account-username').value.trim(), password: $('new-password').value, currentPassword: $('current-password').value }) });
       $('account-form').reset();
-      try { sessionStorage.removeItem('rdc_activation_token'); } catch {}
-      activationToken = ''; setup = false;
-      if (accountRequired) await authenticated(data);
-      else { username = data.username; $('account-name').textContent = username; $('account-screen').hidden = true; $('dashboard').hidden = false; }
+      username = data.username; $('account-name').textContent = username; $('account-screen').hidden = true; $('dashboard').hidden = false;
       message('Usuário e senha salvos. Use esses dados nos próximos acessos.');
     } catch (error) { $('account-message').textContent = error.message; }
     finally { button.disabled = false; button.textContent = 'Salvar meu acesso'; }
@@ -195,8 +185,7 @@
   $('login-form').addEventListener('submit', async event => {
     event.preventDefault(); const button = event.currentTarget.querySelector('button'); button.disabled = true; button.textContent = 'Entrando…'; $('login-message').textContent = '';
     try {
-      if (setup && !activationToken && !invitationReady) throw new Error('Abra o link de primeiro acesso enviado nesta conversa. Depois entre com admin / admin.');
-      const data = await api(setup ? 'setup' : 'login', { method: 'POST', body: JSON.stringify({ username: $('username').value.trim(), password: $('password').value, ...(setup ? { token: activationToken } : {}) }) });
+      const data = await api('login', { method: 'POST', body: JSON.stringify({ username: $('username').value.trim(), password: $('password').value }) });
       $('password').value = ''; await authenticated(data);
     }
     catch (error) { $('login-message').textContent = error.message; }
@@ -211,16 +200,6 @@
         if (data.authenticated) await authenticated(data);
         else {
           $('login').hidden = false;
-          if (data.setupRequired) {
-            setup = true;
-            invitationReady = Boolean(data.invitationReady);
-            if (activationToken || invitationReady) {
-              $('login-title').textContent = 'Primeiro acesso';
-              $('login-description').textContent = 'Entre com o usuário admin e a senha admin. Na próxima tela, defina seu acesso.';
-            } else {
-              $('login-message').textContent = 'O primeiro acesso precisa do convite de ativação enviado ao responsável pela loja.';
-            }
-          }
           $('password').focus();
         }
         return;

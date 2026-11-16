@@ -14,15 +14,13 @@ O site e o painel funcionam em um serviço separado do Sistema Chaveiro, sem ban
 - HTTPS próprio para o domínio e `www`, com redirecionamento para o domínio principal. Configuração final em `nginx-https.conf`; `nginx-http.conf` é somente a preparação anterior ao HTTPS.
 - Limites planejados: 192 MB máximos de RAM, 128 MB de faixa preferencial, 25% de um núcleo, 64 tarefas. O site compartilha o host e o Nginx com o sistema; isso não constitui isolamento físico.
 
-## Primeiro acesso
+## Acesso e conta
 
-Após apontar o DNS e ativar HTTPS, o responsável recebe um link de ativação. No primeiro acesso, entra com usuário `admin` e senha `admin`. Essa combinação é aceita apenas com o convite, e libera somente a tela obrigatória de definição de usuário e nova senha (mínimo de 12 caracteres). Não dá acesso aos produtos até essa troca. O convite deixa de funcionar quando o acesso definitivo é criado; `admin/admin` não permanece como credencial de produção.
+Acesse `/admin/` e entre diretamente com usuário `admin` e senha `admin` enquanto nenhuma credencial personalizada tiver sido gravada. Não há convite, token ou etapa obrigatória de troca: o login abre os produtos.
 
-O link de primeiro acesso usa `/admin/ativar/TOKEN`: o servidor valida o convite, grava um cookie HttpOnly/Secure/SameSite e redireciona para `/admin/`, retirando o token da barra. Essa autorização dura até quatro horas, só permite o acesso inicial enquanto a conta não foi configurada e não substitui usuário e senha. O painel consulta a existência do convite sem disponibilizar seu valor ao JavaScript. Os links antigos por fragmento continuam aceitos na mesma aba. Quando não há convite, a tela explica como abrir o primeiro acesso sem deixar o botão desativado. Chamadas de API têm limite de espera de 12 segundos.
+Em **Minha conta**, o usuário pode alterar login e senha mediante confirmação da senha atual. As credenciais são derivadas com scrypt e gravadas em arquivo privado, sem armazenar a senha original. Ao salvar, as outras sessões são invalidadas e a combinação padrão deixa de ser aceita. Contas já configuradas são preservadas; arquivos antigos sem campo de usuário continuam funcionando com usuário `admin` e a senha que já estava salva.
 
-Depois do login, **Minha conta** permite alterar usuário e senha mediante confirmação da senha atual. A alteração invalida as outras sessões. Credenciais no formato antigo (somente senha) continuam aceitas com usuário `admin`, preservando o hash existente.
-
-O serviço tem sessão HttpOnly/Secure/SameSite, verificação de origem, limite de tentativas e não permite uma segunda criação da senha. Reiniciar o serviço invalida as sessões. O painel não deve ser habilitado em HTTP aberto.
+As chamadas de API têm limite de espera de 12 segundos. Falhas liberam o botão para outra tentativa. O login mantém proteção de origem, limite de tentativas e cookies HttpOnly/Secure/SameSite. Links antigos de ativação redirecionam ao login comum e não controlam acesso.
 
 ## Renovação do HTTPS
 
