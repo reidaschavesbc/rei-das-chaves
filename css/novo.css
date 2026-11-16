@@ -967,3 +967,8 @@ footer p { color: var(--text-muted); font-size: 13px; }
   .fade-up { transition: none; opacity: 1; transform: none; }
   .service-card, .step { transition: none; }
 }
+
+/* Link de privacidade no rodapé público. */
+footer .footer-privacy { margin-top: 8px; }
+.footer-privacy a { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 8px; color: var(--gold-mid); text-decoration: underline; text-underline-offset: 4px; line-height: 1.6; }
+.footer-privacy a:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
