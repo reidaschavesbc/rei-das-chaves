@@ -1,0 +1,46 @@
+[Unit]
+Description=Site e painel Rei das Chaves (independente do Sistema Chaveiro)
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=reidaschaves-site
+Group=reidaschaves-site
+WorkingDirectory=/opt/reidaschaves-site/app
+EnvironmentFile=/etc/reidaschaves-site/service.env
+ExecStart=/usr/bin/node --max-old-space-size=64 /opt/reidaschaves-site/app/admin-service/server-vps.mjs
+Restart=on-failure
+RestartSec=5
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/reidaschaves-site
+InaccessiblePaths=-/var/www -/srv
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+MemoryAccounting=true
+MemoryHigh=128M
+MemoryMax=192M
+MemorySwapMax=0
+CPUAccounting=true
+CPUQuota=25%
+TasksAccounting=true
+TasksMax=64
+LimitNOFILE=1024
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=20
+
+[Install]
+WantedBy=multi-user.target

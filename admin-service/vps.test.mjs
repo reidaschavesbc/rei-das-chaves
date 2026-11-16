@@ -1,0 +1,66 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, cp, symlink, readFile, realpath, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { createStore } from './local-store.mjs';
+
+const source = process.env.SITE_SOURCE;
+if (!source) throw new Error('Informe SITE_SOURCE.');
+const temp = await mkdtemp(join(tmpdir(), 'rdc-test-')), state = join(temp, 'state'), initial = join(state, 'releases', 'initial');
+await mkdir(initial, { recursive: true });
+for (const file of ['fechaduras-eletronicas.html', 'fechaduras-jbm.html', 'fechaduras-mecanicas-stam.html', 'produto-fechadura-athenas.html', 'produto-fechadura-athenas-vidro.html']) await cp(join(source, file), join(initial, file));
+await symlink('releases/initial', join(state, 'current'));
+const store = createStore(state);
+test('salvamento atômico mantém a versão anterior e é idempotente', async () => {
+  const base = await store.snapshot(), before = await readFile(join(initial, 'produto-fechadura-athenas.html'), 'utf8');
+  const changes = [{ id: 'produto-fechadura-athenas', priceCents: 72500 }, { id: 'produto-fechadura-athenas-vidro', priceCents: 73500 }];
+  const result = await store.save({ revision: base.revision, changes });
+  assert.equal(result.unchanged, false);
+  const current = await store.snapshot();
+  assert.equal(current.products.find(p => p.id === changes[0].id).priceCents, 72500);
+  assert.equal(current.products.find(p => p.id === changes[1].id).priceCents, 73500);
+  assert.equal(await readFile(join(initial, 'produto-fechadura-athenas.html'), 'utf8'), before);
+  assert.equal((await readFile(join(current.directory, 'produto-fechadura-athenas.html'), 'utf8')).match(/R\$ 725,00/g).length, 2);
+  const repeat = await store.save({ revision: base.revision, changes });
+  assert.equal(repeat.unchanged, true); assert.equal(repeat.revision, result.revision);
+  await assert.rejects(store.save({ revision: base.revision, changes: [{ id: changes[0].id, priceCents: 71000 }] }), e => e.status === 409);
+});
+test('falha de validação não publica alteração parcial', async () => {
+  const base = await store.snapshot();
+  await assert.rejects(store.save({ revision: base.revision, changes: [{ id: 'produto-fechadura-athenas', priceCents: 70000 }, { id: 'desconhecido', priceCents: 50 }] }));
+  assert.equal((await store.snapshot()).revision, base.revision);
+});
+test('API protege login, ativação, CSRF, arquivos privados e revogação da sessão', async () => {
+  const setupToken = 'fixture-activation-token-not-a-real-secret';
+  process.env.STATE_ROOT = state; process.env.NODE_ENV = 'test'; process.env.PUBLIC_ORIGIN = 'http://localhost:3010';
+  process.env.ADMIN_SETUP_TOKEN_SHA256 = createHash('sha256').update(setupToken).digest('hex');
+  const { server } = await import('./server-vps.mjs');
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, data, cookie, origin = 'http://localhost:3010') => fetch(url + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin, ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(data) });
+  try {
+    assert.equal((await fetch(url + '/api/products')).status, 401);
+    assert.equal((await fetch(url + '/.git/config')).status, 404);
+    assert.equal((await fetch(url + '/admin-service/server-vps.mjs')).status, 404);
+    assert.equal((await fetch(url + '/private/password.json')).status, 404);
+    const pw = 'fixture-password-not-real-2026';
+    assert.equal((await post('/api/setup', { token: setupToken, password: pw }, '', 'https://attacker.invalid')).status, 403);
+    assert.equal((await post('/api/setup', { token: 'wrong', password: pw })).status, 403);
+    const activation = await post('/api/setup', { token: setupToken, password: pw });
+    assert.equal(activation.status, 200);
+    const cookie = activation.headers.get('set-cookie').split(';')[0];
+    assert.match(activation.headers.get('set-cookie'), /HttpOnly/); assert.match(activation.headers.get('set-cookie'), /SameSite=Strict/);
+    assert.equal((await post('/api/setup', { token: setupToken, password: pw })).status, 409);
+    const creds = JSON.parse(await readFile(join(state, 'private', 'password.json'), 'utf8'));
+    assert.notEqual(creds.hash, pw); assert.ok(creds.salt);
+    const result = await fetch(url + '/api/products', { headers: { Cookie: cookie } }); assert.equal(result.status, 200); assert.equal((await result.json()).products.length, 22);
+    assert.equal((await post('/api/prices', {}, cookie, 'https://attacker.invalid')).status, 403);
+    assert.equal((await post('/api/logout', {}, cookie)).status, 200);
+    assert.equal((await fetch(url + '/api/products', { headers: { Cookie: cookie } })).status, 401);
+    assert.equal((await post('/api/login', { password: 'wrong-password-123' })).status, 401);
+    assert.equal((await post('/api/login', { password: pw })).status, 200);
+    assert.equal((await post('/api/login', null)).status, 400);
+  } finally { await new Promise(resolve => server.close(resolve)); await rm(temp, { recursive: true, force: true }); }
+});

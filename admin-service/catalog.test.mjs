@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { categories, parseCatalog, validateChanges, updateCatalog, updateProduct, formatPrice } from './catalog.mjs';
+const source = process.env.SITE_SOURCE;
+if (!source) throw new Error('Informe SITE_SOURCE apontando para os arquivos públicos do site.');
+const catalogs = new Map(await Promise.all(categories.map(async c => [c.file, await readFile(resolve(source, c.file), 'utf8')])));
+const products = categories.flatMap(c => parseCatalog(catalogs.get(c.file), c));
+test('o catálogo real contém 22 produtos únicos em três categorias, com páginas e imagens existentes', async () => {
+  assert.equal(products.length, 22); assert.equal(new Set(products.map(p => p.id)).size, 22);
+  assert.equal(new Set(products.map(p => p.category)).size, 3);
+  for (const p of products) { assert.ok(p.priceCents > 0); await readFile(resolve(source, p.image)); const html = await readFile(resolve(source, p.id + '.html'), 'utf8'); assert.ok(updateProduct(html, 12345).includes('R$ 123,45')); }
+});
+test('alterar Athenas não muda nenhum outro cartão', () => {
+  const category = categories[0], html = catalogs.get(category.file);
+  const updated = updateCatalog(html, 'produto-fechadura-athenas', 72500);
+  const parsed = parseCatalog(updated, category);
+  assert.equal(parsed.find(p => p.id === 'produto-fechadura-athenas').priceCents, 72500);
+  for (const p of parsed.filter(p => p.id !== 'produto-fechadura-athenas')) assert.deepEqual(p, products.find(old => old.id === p.id));
+});
+test('preço principal e barra de compra são atualizados juntos', async () => {
+  const html = await readFile(resolve(source, 'produto-fechadura-athenas.html'), 'utf8');
+  const after = updateProduct(html, 72500);
+  assert.equal((after.match(/R\$ 725,00/g) || []).length, 2);
+  assert.equal(after, html.replaceAll('R$ 750,00', 'R$ 725,00'));
+  assert.throws(() => updateProduct('<div>formato inesperado</div>', 100));
+});
+test('rejeita duplicidade, arquivos desconhecidos e preços inválidos', () => {
+  const good = { id: products[0].id, priceCents: 75000 };
+  for (const changes of [[], [good, good], [{ ...good, id: '../server' }], [{ ...good, priceCents: 0 }], [{ ...good, priceCents: -1 }], [{ ...good, priceCents: 12.5 }], [{ ...good, priceCents: '75000' }], [{ ...good, priceCents: 100000000 }]]) assert.throws(() => validateChanges(changes, products));
+  validateChanges([good], products); assert.equal(formatPrice(123456), 'R$ 1.234,56');
+});
