@@ -65,7 +65,7 @@ test('API protege login, ativação, CSRF, arquivos privados e revogação da se
     const creds = JSON.parse(await readFile(join(state, 'private', 'password.json'), 'utf8'));
     assert.notEqual(creds.hash, pw); assert.ok(creds.salt);
     assert.equal(creds.username, 'owner');
-    const result = await fetch(url + '/api/products', { headers: { Cookie: cookie } }); assert.equal(result.status, 200); assert.equal((await result.json()).products.length, 22);
+    const result = await fetch(url + '/api/products', { headers: { Cookie: cookie } }); assert.equal(result.status, 200); assert.equal((await result.json()).products.length, 23);
     assert.equal((await post('/api/prices', {}, cookie, 'https://attacker.invalid')).status, 403);
     assert.equal((await post('/api/account', { username: 'new-owner', currentPassword: 'incorrect', password: 'new-fixture-password-2026' }, cookie)).status, 400);
     const changed = await post('/api/account', { username: 'new-owner', currentPassword: pw, password: 'new-fixture-password-2026' }, cookie);
