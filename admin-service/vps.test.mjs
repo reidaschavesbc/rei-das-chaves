@@ -78,5 +78,11 @@ test('API protege login, ativação, CSRF, arquivos privados e revogação da se
     assert.equal((await post('/api/login', { username: 'admin', password: 'admin' })).status, 401);
     assert.equal((await post('/api/login', { username: 'new-owner', password: 'new-fixture-password-2026' })).status, 200);
     assert.equal((await post('/api/login', null)).status, 400);
+    // Failed attempts from one visitor must not lock every visitor behind Nginx.
+    const invalidFrom = (ip) => fetch(url + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3010', 'X-Real-IP': ip }, body: JSON.stringify({ username: 'invalid', password: 'incorrect' }) });
+    for (let i = 0; i < 10; i++) assert.equal((await invalidFrom('192.0.2.10')).status, 401);
+    assert.equal((await invalidFrom('192.0.2.10')).status, 429);
+    assert.equal((await invalidFrom('192.0.2.11')).status, 401);
+
   } finally { await new Promise(resolve => server.close(resolve)); await rm(temp, { recursive: true, force: true }); }
 });

@@ -47,3 +47,11 @@ SITE_SOURCE=/caminho/dos/arquivos/publicos node --test admin-service/catalog.tes
 ```
 
 Não compartilhar `private/`, o convite ou os arquivos de ambiente no GitHub. O Nginx não deve entregar arquivos ocultos, o código de servidor, `release.json` nem diretórios privados.
+
+## Protecoes revisadas em 17/11/2026
+
+O Nginx precisa incluir `/etc/nginx/snippets/reidaschaves-site-security.conf`, instalado a partir de `admin-service/security-headers.conf`. O include aparece tambem nas rotas com `add_header` proprio, pois essas rotas nao herdam os cabecalhos do bloco superior nas versoes atuais deste servidor. Os cabecalhos acrescentam HSTS, nosniff, bloqueio de enquadramento, politica de referenciador e restricoes a objetos/base HTML. A politica mais restritiva do painel permanece ativa.
+
+O proxy sobrescreve `X-Real-IP` com `$remote_addr`. O servidor usa esse valor somente quando a conexao vem de loopback, para separar tentativas de visitantes distintos. Nao exponha a porta 3010 nem repasse um valor de X-Real-IP fornecido pelo visitante.
+
+O acesso padrao admin/admin continua conforme solicitado pelo proprietario. Enquanto nao for substituido em Minha conta, qualquer pessoa que conheca essa combinacao pode gerenciar o catalogo. A revisao nao alterou credenciais, nao modificou o banco e nao executou testes em navegador.

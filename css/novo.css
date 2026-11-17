@@ -986,3 +986,97 @@ body {
 }
 body::before { display: none; }
 .hero-blobs { display: none; }
+
+
+/* Visual aprovado: menu flutuante e imagens dos servicos. */
+
+/* Menu lateral flutuante. */
+.side-drawer {
+  top: 16px;
+  left: 16px;
+  height: calc(100dvh - 32px);
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 20px;
+  gap: 18px;
+  border: 1px solid #ffffff26;
+  border-radius: 24px;
+  background: linear-gradient(135deg,#30363b 0%,#20262a 75%);
+  box-shadow: 0 24px 70px #00000066, inset 0 1px #ffffff0b;
+  transform: translateX(calc(-100% - 32px));
+  transition: transform .28s ease;
+  scrollbar-width: thin;
+  scrollbar-color: #65696b transparent;
+}
+.side-drawer.open { transform: translateX(0); }
+.drawer-brand-header { display: flex; align-items: center; gap: 12px; padding-bottom: 17px; border-bottom: 1px solid #ffffff15; }
+.drawer-brand-header .drawer-logo { width: 57px; height: 57px; margin: 0; object-fit: contain; flex-shrink: 0; }
+.drawer-brand-copy { flex: 1; min-width: 0; }
+.drawer-brand-copy strong { display: block; color: #f7f0df; font: 600 15px/1.4 'Montserrat',sans-serif; }
+.drawer-brand-copy span { display: block; margin-top: 4px; color: #d5b66f; font: 400 11px/1.5 'Inter',sans-serif; }
+.drawer-brand-header .drawer-close { align-self: center; width: 32px; height: 32px; flex-shrink: 0; background: #ffffff06; border-color: #ffffff20; }
+.drawer-brand-header .drawer-close svg { width: 17px; height: 17px; }
+.drawer-nav { gap: 4px; }
+.drawer-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 11px 12px; border-radius: 10px; font: 500 14px/1.45 'Inter',sans-serif; color: #dfdfdc; }
+.drawer-link > svg { width: 19px; height: 19px; color: #a9aaa7; flex-shrink: 0; }
+.drawer-link:hover,.drawer-link:focus-visible { background: #ffffff08; color: #f6dfaa; }
+.drawer-link:hover > svg,.drawer-link:focus-visible > svg { color: #e2bc65; }
+.drawer-link[aria-current="page"] { color: #f1d38e; background: #e3a62815; box-shadow: inset 3px 0 #d1a045; }
+.drawer-link[aria-current="page"] > svg { color: #e5bd65; }
+.drawer-actions { gap: 9px; padding-top: 17px; border-top: 1px solid #ffffff15; }
+.drawer-actions .btn { min-height: 47px; border-radius: 12px; padding: 12px 14px; font-size: 13px; }
+.drawer-actions .btn-whatsapp { background: #20b957; box-shadow: 0 5px 18px #20b9571a; }
+.drawer-actions .btn-call { background: #ffffff05; border-color: #ffffff1d; color: #e1e0dc; box-shadow: none; }
+.drawer-overlay { background: #07090c80; backdrop-filter: blur(4px); }
+@media(max-width:400px) { .side-drawer { top: 10px; left: 10px; height: calc(100dvh - 20px); max-width: calc(100vw - 20px); border-radius: 20px; padding: 18px; } }
+@media(prefers-reduced-motion:reduce) { .side-drawer { transition: none; } }
+
+
+
+/* Recortes individuais com alfa: o fundo do cartão permanece visível. */
+.service-card { padding: 22px 16px 18px; gap: 12px; }
+.service-icon.service-image {
+  display: block;
+  width: min(100%, 205px);
+  max-width: 100%;
+  height: 185px;
+  aspect-ratio: auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+.service-icon.service-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.service-card:hover .service-icon.service-image {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  transform: none;
+}
+.service-label { min-height: 36px; display: flex; align-items: center; justify-content: center; }
+@media(max-width:680px) {
+  .service-card { padding: 16px 12px; gap: 10px; }
+  .service-icon.service-image { width: min(100%, 180px); height: 145px; }
+}
+
+
+
+/* Icones consistentes para leitura no menu. */
+.drawer-link > svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  stroke-width: 2;
+  color: #c1c5c7;
+}
+.drawer-link:hover > svg,.drawer-link:focus-visible > svg,.drawer-link[aria-current="page"] > svg { color: #e5bd65; }

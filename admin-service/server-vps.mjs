@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { isIP } from 'node:net';
 import { readFile, writeFile, rename, realpath, stat, mkdir } from 'node:fs/promises';
 import { resolve, extname, sep, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,14 +36,21 @@ function getSession(req) {
   sessions.delete(id); return null;
 }
 async function credentials() { try { return JSON.parse(await readFile(passwordFile, 'utf8')); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } }
+// Nginx overwrites X-Real-IP; trust it only on the loopback connection.
+function clientAddress(req) {
+  const peer = req.socket.remoteAddress;
+  const forwarded = req.headers['x-real-ip'];
+  if (['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer) && typeof forwarded === 'string' && isIP(forwarded)) return forwarded;
+  return peer;
+}
 function limitAttempt(req) {
-  const key = req.socket.remoteAddress, now = Date.now(), attempt = attempts.get(key) || { count: 0, until: now + 15 * 60000 };
+  const key = clientAddress(req), now = Date.now(), attempt = attempts.get(key) || { count: 0, until: now + 15 * 60000 };
   if (attempt.until < now) { attempt.count = 0; attempt.until = now + 15 * 60000; }
   if (attempt.count >= 10) throw new RequestError('Muitas tentativas. Aguarde 15 minutos antes de tentar novamente.', 429);
   attempt.count++; attempts.set(key, attempt);
 }
 function login(req, res, username = 'admin') {
-  attempts.delete(req.socket.remoteAddress); const previous = getSession(req); if (previous) sessions.delete(previous.id);
+  attempts.delete(clientAddress(req)); const previous = getSession(req); if (previous) sessions.delete(previous.id);
   const id = randomBytes(32).toString('hex');
   sessions.set(id, { expires: Date.now() + ttl, username });
   send(res, 200, { authenticated: true, username, mustChangeCredentials: false }, { 'Set-Cookie': cookie(id, ttl / 1000) });
