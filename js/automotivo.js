@@ -38,6 +38,11 @@
     if (!el.name) return;
     const previous = answers.servico;
     answers[el.name] = el.value.trim();
+    if (el.name === 'servico' && previous !== el.value) {
+      delete answers.situacao;
+      form.querySelectorAll('input[name="situacao"]').forEach(input => { input.checked = false; });
+      document.getElementById('wizardRoutingNotice').hidden = true;
+    }
     if (el.name === 'servico' && previous === 'abertura' && el.value !== previous) {
       for (const name of ['atendimento', 'atendimento_moto']) {
         delete answers[name];
@@ -116,6 +121,7 @@
       cepStatus.textContent = 'Busque pelo CEP ou preencha o endereço abaixo.';
     }
     form.querySelectorAll('.wizard-step').forEach(section => { section.hidden = section.dataset.step !== step; });
+    if (step === 'servico') document.getElementById('openingServiceLabel').textContent = answers.categoria === 'moto' ? 'Abertura — banco ou baú' : 'Abertura de veículo';
     for (const [id, name] of [['veiculo', 'atendimento'], ['veiculo_moto', 'atendimento-moto']]) {
       if (step === id) form.querySelector(`[data-field-group="${name}"]`).hidden = answers.servico === 'abertura';
     }
@@ -141,7 +147,20 @@
     firstRender = false;
   }
   next.addEventListener('click', () => {
-    if (!validate(sequence()[index])) return;
+    const step = sequence()[index];
+    const resolved = core.resolveAnswers(answers);
+    if (step === 'situacao' && resolved.servico !== answers.servico) {
+      answers.servico = resolved.servico;
+      delete answers.situacao;
+      form.querySelectorAll('input[name="servico"]').forEach(input => { input.checked = input.value === answers.servico; });
+      form.querySelectorAll('input[name="situacao"]').forEach(input => { input.checked = false; });
+      const notice = document.getElementById('wizardRoutingNotice');
+      notice.textContent = 'Como todas as chaves foram perdidas, ajustamos o serviço para “Todas as chaves perdidas”.';
+      notice.hidden = false;
+      render();
+      return;
+    }
+    if (!validate(step)) return;
     if (index < sequence().length - 1) index++;
     render();
   });

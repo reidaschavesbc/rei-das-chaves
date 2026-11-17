@@ -177,6 +177,7 @@
         <span class="wizard-progress-text" id="wizardProgressText">Vamos começar</span>
       </div>
 
+      <p id="wizardRoutingNotice" class="wizard-address-note" role="status" hidden></p>
       <form id="autoForm" novalidate>
 
         <!-- ETAPA: CATEGORIA DO VEÍCULO -->
@@ -215,8 +216,12 @@
                 <span class="option-text"><strong>Problema no controle ou telecomando</strong></span>
               </label>
               <label class="option-card">
+                <input type="radio" name="servico" value="chave" class="option-input">
+                <span class="option-text"><strong>Chave danificada ou não funciona</strong></span>
+              </label>
+              <label class="option-card">
                 <input type="radio" name="servico" value="abertura" class="option-input">
-                <span class="option-text"><strong>Abertura de veículo</strong></span>
+                <span class="option-text"><strong id="openingServiceLabel">Abertura de veículo</strong></span>
               </label>
               <label class="option-card">
                 <input type="radio" name="servico" value="outro" class="option-input">
@@ -368,7 +373,7 @@
           <p class="wizard-error" data-error-for="funcao" hidden>Escolhe uma opção pra continuar.</p>
 
           <div class="field-group field-group-optional" data-field-group="chip">
-            <span class="field-group-label">Seu carro tem chip? <em>(opcional)</em></span>
+            <span class="field-group-label">Você sabe se a chave é codificada, com chip? <em>(opcional)</em></span>
             <div class="option-grid option-grid-3">
               <label class="option-card option-card-sm">
                 <input type="radio" name="chip" value="sim" class="option-input">
@@ -394,7 +399,7 @@
               <input type="radio" name="codificacao" value="sim" class="option-input">
               <span class="option-text">
                 <strong>Sim</strong>
-                <small>Tem chip / trava eletrônica.</small>
+                <small>A chave possui chip de identificação.</small>
               </span>
             </label>
             <label class="option-card option-card-sm">
@@ -434,6 +439,58 @@
             </label>
           </div>
           <p class="wizard-error" data-error-for="situacao" hidden>Escolhe uma opção pra continuar.</p>
+        </section>
+
+        <section class="wizard-step" data-step="tipo_moto" hidden>
+          <fieldset>
+            <legend class="wizard-question">A moto usa chave no contato ou chave de presença?</legend>
+            <div class="option-grid">
+              <label class="option-card"><input type="radio" name="tipo_moto" value="contato" class="option-input"><span class="option-text"><strong>Chave no contato</strong></span></label>
+              <label class="option-card"><input type="radio" name="tipo_moto" value="presenca" class="option-input"><span class="option-text"><strong>Chave de presença</strong></span></label>
+              <label class="option-card"><input type="radio" name="tipo_moto" value="naosei" class="option-input"><span class="option-text"><strong>Não sei / preciso de orientação</strong></span></label>
+            </div>
+            <p class="wizard-error" data-error-for="tipo_moto" hidden>Escolha uma opção para continuar.</p>
+          </fieldset>
+        </section>
+
+        <section class="wizard-step" data-step="problema" hidden>
+          <fieldset>
+            <legend class="wizard-question">Qual é o principal problema com a chave ou o controle?</legend>
+            <div class="option-grid">
+              <label class="option-card"><input type="radio" name="problema" value="molhou" class="option-input"><span class="option-text"><strong>Molhou / teve contato com água</strong></span></label>
+              <label class="option-card"><input type="radio" name="problema" value="botoes" class="option-input"><span class="option-text"><strong>Os botões não funcionam</strong></span></label>
+              <label class="option-card"><input type="radio" name="problema" value="danificada" class="option-input"><span class="option-text"><strong>Chave ou controle quebrado / danificado</strong></span></label>
+              <label class="option-card"><input type="radio" name="problema" value="reconhecimento" class="option-input"><span class="option-text"><strong>O veículo não reconhece a chave</strong></span></label>
+              <label class="option-card"><input type="radio" name="problema" value="outro" class="option-input"><span class="option-text"><strong>Outro problema</strong></span></label>
+              <label class="option-card"><input type="radio" name="problema" value="naosei" class="option-input"><span class="option-text"><strong>Não sei explicar</strong></span></label>
+            </div>
+            <p class="wizard-error" data-error-for="problema" hidden>Escolha uma opção para continuar.</p>
+          </fieldset>
+        </section>
+
+        <section class="wizard-step" data-step="partida" hidden>
+          <fieldset>
+            <legend class="wizard-question">O veículo liga normalmente?</legend>
+            <div class="option-grid">
+              <label class="option-card"><input type="radio" name="partida" value="sim" class="option-input"><span class="option-text"><strong>Sim, liga normalmente</strong></span></label>
+              <label class="option-card"><input type="radio" name="partida" value="nao" class="option-input"><span class="option-text"><strong>Não liga</strong></span></label>
+              <label class="option-card"><input type="radio" name="partida" value="naosei" class="option-input"><span class="option-text"><strong>Não sei / não testei</strong></span></label>
+            </div>
+            <p class="wizard-error" data-error-for="partida" hidden>Escolha uma opção para continuar.</p>
+          </fieldset>
+        </section>
+
+        <section class="wizard-step" data-step="abertura_moto" hidden>
+          <fieldset>
+            <legend class="wizard-question">O que precisa abrir na moto?</legend>
+            <div class="option-grid">
+              <label class="option-card"><input type="radio" name="abertura_moto" value="banco" class="option-input"><span class="option-text"><strong>Banco</strong></span></label>
+              <label class="option-card"><input type="radio" name="abertura_moto" value="bau" class="option-input"><span class="option-text"><strong>Baú</strong></span></label>
+              <label class="option-card"><input type="radio" name="abertura_moto" value="ambos" class="option-input"><span class="option-text"><strong>Banco e baú</strong></span></label>
+              <label class="option-card"><input type="radio" name="abertura_moto" value="naosei" class="option-input"><span class="option-text"><strong>Não sei / preciso de orientação</strong></span></label>
+            </div>
+            <p class="wizard-error" data-error-for="abertura_moto" hidden>Escolha uma opção para continuar.</p>
+          </fieldset>
         </section>
 
         <!-- ETAPA: ENDEREÇO DO ATENDIMENTO (CARRO E MOTO) -->
@@ -528,7 +585,7 @@
   </a>
 
   <script src="js/novo.js" defer></script>
-  <script src="js/automotivo-core.js?v=endereco-20261117" defer></script>
-  <script src="js/automotivo.js?v=endereco-20261117" defer></script>
+  <script src="js/automotivo-core.js?v=perguntas-20261117" defer></script>
+  <script src="js/automotivo.js?v=perguntas-20261117" defer></script>
 </body>
 </html>

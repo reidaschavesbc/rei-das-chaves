@@ -83,3 +83,53 @@ test('resposta inesperada do provedor não injeta objetos nos campos', async () 
   const address = await core.lookupCep('01001000', { fetch: async () => ({ ok: true, json: async () => ({ logradouro: {}, bairro: null, localidade: [], uf: 'XX' }) }) });
   assert.equal(address.rua, ''); assert.equal(address.cidade, ''); assert.equal(address.uf, '');
 });
+
+test('cópia com todas as chaves perdidas é resolvida para perda total e não gera mensagem contraditória', () => {
+  for (const categoria of ['carro', 'moto']) {
+    const a = { ...local, categoria, servico: 'copia', situacao: 'perdeu' };
+    assert.equal(core.validateStep('situacao', a), false);
+    assert.equal(core.resolveAnswers(a).servico, 'perdeu');
+    const message = core.buildMessage(a);
+    assert.match(message, /Serviço: Todas as chaves perdidas/);
+    assert.doesNotMatch(message, /Serviço: Cópia|Gostaria de fazer uma cópia/);
+  }
+});
+test('problema de água é coletado para chave e controle, em carros e motos', () => {
+  for (const categoria of ['carro', 'moto']) for (const servico of ['controle', 'chave', 'copia']) {
+    const a = { ...local, categoria, servico, situacao: 'naofunciona', problema: 'molhou', partida: 'nao' };
+    assert.ok(core.sequence(a).includes('problema'));
+    assert.ok(core.sequence(a).includes('partida'));
+    assert.equal(core.validateStep('problema', a), true);
+    const message = core.buildMessage(a);
+    assert.match(message, /Problema informado: Molhou \/ teve contato com água/);
+    assert.match(message, /O veículo liga\?: Não liga/);
+  }
+});
+test('perda de chaves e abertura não carregam diagnóstico antigo de água', () => {
+  for (const servico of ['perdeu', 'abertura']) {
+    const a = { ...local, servico, problema: 'molhou', partida: 'nao' };
+    assert.doesNotMatch(core.buildMessage(a), /Molhou|O veículo liga/);
+  }
+});
+test('moto pergunta tipo e só pergunta codificação quando a chave é de contato', () => {
+  for (const servico of ['perdeu', 'copia']) for (const tipo_moto of ['contato', 'presenca', 'naosei']) {
+    const a = { ...local, servico, tipo_moto };
+    assert.ok(core.sequence(a).includes('tipo_moto'));
+    assert.equal(core.sequence(a).includes('codificacao'), tipo_moto === 'contato');
+    assert.equal(core.validateStep('tipo_moto', a), true);
+    assert.equal(core.sequence(a).includes('funcao'), false);
+  }
+});
+test('abertura de moto identifica banco e baú; abertura de carro continua própria', () => {
+  const a = { ...local, servico: 'abertura', abertura_moto: 'bau' };
+  assert.ok(core.sequence(a).includes('abertura_moto'));
+  assert.equal(core.validateStep('abertura_moto', a), true);
+  assert.match(core.buildMessage(a), /Serviço: Abertura — banco ou baú/);
+  assert.match(core.buildMessage(a), /O que precisa abrir: Baú/);
+  const car = { ...a, categoria: 'carro' };
+  assert.equal(core.sequence(car).includes('abertura_moto'), false);
+  assert.doesNotMatch(core.buildMessage(car), /banco ou baú|O que precisa abrir/);
+});
+test('opção de chave só para abertura continua disponível conforme item 6 ainda não aprovado', () => {
+  assert.equal(core.validateStep('funcao', { categoria: 'carro', servico: 'perdeu', funcao: 'abrir' }), true);
+});
