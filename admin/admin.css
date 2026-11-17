@@ -87,3 +87,82 @@
 @media(max-width:1000px){.dashboard{grid-template-columns:220px minmax(0,1fr)}.sidebar{padding:25px 12px}.content{padding:28px 25px 140px}.topbar{padding:0 25px}.save-bar{left:220px;padding:18px 25px}.products{grid-template-columns:repeat(2,minmax(0,1fr))}.overview>div{padding:20px 15px}}
 @media(max-width:700px){.dashboard{display:block}.sidebar{position:relative;height:auto;padding:16px}.brand{flex-direction:row;justify-content:space-between;padding:0 0 16px}.brand img{width:100px;height:65px}.nav-label,.sidebar-footer{display:none}nav{display:flex;overflow:auto;gap:8px;padding-bottom:4px}.category-button{white-space:nowrap;width:auto;gap:12px;padding:11px}.topbar{height:54px;padding:0 18px;font-size:12px}.content{padding:26px 16px 165px}.heading{align-items:flex-start}.heading h1{font-size:28px}.heading p{font-size:14px}.heading>.secondary{font-size:12px;padding:9px;min-height:40px}.overview{margin:24px 0}.overview>div{padding:16px 10px}.overview strong{font-size:24px}.overview span{font-size:11px;line-height:1.5}.toolbar{flex-wrap:wrap;gap:14px;margin-bottom:24px}.search{max-width:none}.pending-filter{font-size:13px}.products{gap:12px}.product-media{height:160px;padding:12px}.product-body{padding:13px}.product h3{font-size:14px;min-height:61px}.current-price{font-size:11px}.save-bar{left:0;padding:16px;flex-wrap:wrap;gap:14px}.save-actions{width:100%;justify-content:flex-end}.save-bar span{font-size:11px}.section-heading h2{font-size:17px}}
 @media(max-width:370px){.products{grid-template-columns:1fr}.product h3{min-height:auto}.product-media{height:210px}}
+
+/* Identidade do site: grafite texturizado, dourado e texto claro. */
+:root {
+  --navy: #171b1e;
+  --panel: #30363b;
+  --gold: #e3a628;
+  --ink: #f3f0e8;
+  --muted: #b8b4aa;
+  --line: #ffffff20;
+  --paper: #171b1e;
+  --green: #62d59b;
+  color-scheme: dark;
+}
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  background-color: #171b1e;
+  background-image:
+    url("/image/textura-grafite.svg"),
+    repeating-linear-gradient(115deg, transparent 0px, transparent 28px, #ffffff03 29px, transparent 30px),
+    radial-gradient(ellipse 100% 60% at 10% 0%, #6c62552b, transparent 75%),
+    linear-gradient(110deg, #0f1316 0%, #22282b 46%, #12171a 100%);
+  background-size: 180px 180px, auto, auto, auto;
+  background-attachment: fixed;
+}
+.sidebar {
+  background: linear-gradient(135deg, #30363b 0%, #20262a 75%);
+  border-right: 1px solid var(--line);
+}
+.brand span, .sidebar-footer { color: var(--muted); }
+.nav-label { color: #d5b66f; }
+.category-button { color: #dfdfdc; }
+.category-button:hover { background: #ffffff08; }
+.category-button[aria-current="true"] {
+  color: #f1d38e;
+  background: #e3a62815;
+  border-color: #e3a62820;
+  box-shadow: inset 3px 0 #d1a045;
+}
+.category-button[aria-current="true"] .count { color: #f1d38e; background: #ffffff12; }
+.topbar { background: #20262ae8; backdrop-filter: blur(12px); }
+.primary { color: #171b1e; }
+.secondary { color: var(--ink); background: #ffffff08; border-color: #ffffff30; }
+.secondary:hover { background: #ffffff12; }
+.overview, .product { background: #303638e8; }
+.overview strong { color: #f1d38e; }
+.search { background: #20262ae8; border-color: #ffffff40; }
+.search:focus-within, .price-input:focus-within { border-color: #e3a628; outline: 2px solid #e3a62866; outline-offset: 2px; }
+.search input:focus-visible, .price-input input:focus-visible { outline: none; }
+input::placeholder { color: #aca99f; opacity: 1; }
+input[type="checkbox"] { accent-color: var(--gold); }
+.product-media { background: #262c30; border-color: var(--line); }
+.product-category { color: #d5b66f; }
+.product.changed { border-color: #d1a045; }
+.price-input { background: #1d2326; border-color: #ffffff40; }
+.price-input input { color: var(--ink); }
+.product-state { color: #e9c57c; }
+.price-input:has(input[aria-invalid="true"]) { border-color: #ffb3a9; }
+.product-body:has(input[aria-invalid="true"]) .product-state { color: #ffb3a9; }
+.save-bar { background: #1c2225f5; backdrop-filter: blur(12px); }
+.save-bar span { color: var(--muted); }
+.message.error, #save-error, #login-message,
+.login-card #login-message, .login-card .account-message { color: #ffb3a9; }
+.notice { background: #e3a62815; border-color: #a9853d; color: #f3dfb2; }
+.login-shell { background: transparent; }
+.login-card {
+  background: #2b3135f5;
+  border-color: var(--line);
+  border-top-color: var(--gold);
+  box-shadow: 0 24px 70px #00000050;
+}
+.login-card input { background: #1d2326; color: var(--ink); border-color: #ffffff40; }
+.login-card input:focus-visible { border-color: var(--gold); outline-color: #e3a62866; }
+dialog { background: #282e32; border: 1px solid var(--line); }
+dialog::backdrop { background: #090c10b8; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline-color: var(--gold); }
+@media (max-width: 700px) {
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+}
