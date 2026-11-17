@@ -114,6 +114,14 @@
 
   function render() {
     const seq = sequence();
+    const openingOnly = form.querySelector('input[name="funcao"][value="abrir"]');
+    openingOnly.closest('.option-card').hidden = answers.servico === 'perdeu';
+    if (answers.servico === 'perdeu' && answers.funcao === 'abrir') {
+      delete answers.funcao;
+      openingOnly.checked = false;
+      const functionIndex = seq.indexOf('funcao');
+      if (functionIndex !== -1 && index > functionIndex) index = functionIndex;
+    }
     index = Math.min(index, seq.length - 1);
     const step = seq[index];
     if (step !== 'endereco' && cepButton.disabled) {

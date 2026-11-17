@@ -56,7 +56,7 @@
       case 'problema': return Boolean(problems[a.problema]);
       case 'partida': return Boolean(starting[a.partida]);
       case 'abertura_moto': return Boolean(openings[a.abertura_moto]);
-      case 'funcao': return Boolean(functions[a.funcao]);
+      case 'funcao': return Boolean(functions[a.funcao]) && !(resolveAnswers(a).servico === 'perdeu' && a.funcao === 'abrir');
       case 'codificacao': return Boolean(coding[a.codificacao]);
       case 'situacao': return Boolean(situations[a.situacao]) && !(a.servico === 'copia' && a.situacao === 'perdeu');
       case 'endereco': return Boolean(filled('rua', 'numero', 'bairro', 'cidade') && states.has(value(a, 'uf').toUpperCase()) && (!value(a, 'cep') || /^\d{8}$/.test(digits(a.cep))));

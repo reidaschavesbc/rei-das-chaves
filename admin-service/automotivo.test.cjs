@@ -130,6 +130,9 @@ test('abertura de moto identifica banco e baú; abertura de carro continua próp
   assert.equal(core.sequence(car).includes('abertura_moto'), false);
   assert.doesNotMatch(core.buildMessage(car), /banco ou baú|O que precisa abrir/);
 });
-test('opção de chave só para abertura continua disponível conforme item 6 ainda não aprovado', () => {
-  assert.equal(core.validateStep('funcao', { categoria: 'carro', servico: 'perdeu', funcao: 'abrir' }), true);
+test('perda total rejeita chave só para abrir e cópia mantém essa opção', () => {
+  assert.equal(core.validateStep('funcao', { categoria: 'carro', servico: 'perdeu', funcao: 'abrir' }), false);
+  assert.equal(core.validateStep('funcao', { categoria: 'carro', servico: 'copia', funcao: 'abrir' }), true);
+  assert.equal(core.validateStep('funcao', { categoria: 'carro', servico: 'copia', situacao: 'perdeu', funcao: 'abrir' }), false);
+  for (const funcao of ['partida', 'completa', 'naosei']) assert.equal(core.validateStep('funcao', { categoria: 'carro', servico: 'perdeu', funcao }), true);
 });
