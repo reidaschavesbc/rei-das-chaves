@@ -175,6 +175,7 @@
 }
 
 .field input[type="text"],
+.field select,
 .field textarea {
   width: 100%;
   background: rgba(255, 255, 255, 0.04);
@@ -277,4 +278,20 @@
 @media (max-width: 480px) {
   .wizard-nav { flex-direction: column-reverse; }
   .wizard-nav .btn { width: 100%; justify-content: center; margin-left: 0 !important; }
+}
+
+/* Endereço compartilhado por carro e moto; campos sempre editáveis. */
+.wizard-address-note { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+.field-wide { grid-column: 1 / -1; }
+.field select { color-scheme: dark; }
+.cep-lookup { display: flex; align-items: flex-end; gap: 12px; }
+.cep-lookup .field { flex: 1; margin-bottom: 0; }
+.cep-lookup .btn { min-height: 47px; border-radius: var(--radius-sm); }
+.cep-lookup .btn:disabled { opacity: .65; cursor: wait; }
+.cep-status { color: var(--text-muted); font-size: 13px; margin: 10px 0 22px; }
+.cep-status.is-error { color: #ffb3a9; }
+.wizard-summary li span:last-child { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 400px) {
+  .cep-lookup { align-items: stretch; flex-direction: column; }
+  .cep-lookup .btn { justify-content: center; }
 }

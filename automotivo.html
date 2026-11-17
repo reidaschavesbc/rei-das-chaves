@@ -36,7 +36,7 @@
 
   <link rel="stylesheet" href="css/novo.css?v=visual-20261117">
   <link rel="stylesheet" href="css/produtos.css">
-  <link rel="stylesheet" href="css/automotivo.css">
+  <link rel="stylesheet" href="css/automotivo.css?v=endereco-20261117">
 </head>
 <body>
 
@@ -204,7 +204,7 @@
             <div class="option-grid">
               <label class="option-card">
                 <input type="radio" name="servico" value="perdeu" class="option-input" required>
-                <span class="option-text"><strong>Perdi todas as chaves</strong></span>
+                <span class="option-text"><strong>Todas as chaves perdidas</strong></span>
               </label>
               <label class="option-card">
                 <input type="radio" name="servico" value="copia" class="option-input">
@@ -244,14 +244,6 @@
               <span>Ano</span>
               <input type="text" name="ano" placeholder="Ex: 2018 (se souber)" inputmode="numeric">
             </label>
-            <label class="field">
-              <span>Cidade *</span>
-              <input type="text" name="cidade" placeholder="Ex: Balneário Camboriú" required>
-            </label>
-            <label class="field">
-              <span>Bairro *</span>
-              <input type="text" name="bairro" placeholder="Ex: Centro" required>
-            </label>
           </div>
 
           <div class="field-group" data-field-group="atendimento">
@@ -277,20 +269,16 @@
 
           <div class="field-grid">
             <label class="field">
+              <span>Marca (opcional)</span>
+              <input type="text" name="marca_moto" placeholder="Ex.: Honda" maxlength="80">
+            </label>
+            <label class="field">
               <span>Modelo *</span>
               <input type="text" name="modelo_moto" placeholder="Ex: CG 160" required>
             </label>
             <label class="field">
               <span>Ano</span>
               <input type="text" name="ano_moto" placeholder="Ex: 2020 (se souber)" inputmode="numeric">
-            </label>
-            <label class="field">
-              <span>Cidade *</span>
-              <input type="text" name="cidade_moto" placeholder="Ex: Balneário Camboriú" required>
-            </label>
-            <label class="field">
-              <span>Bairro *</span>
-              <input type="text" name="bairro_moto" placeholder="Ex: Centro" required>
             </label>
           </div>
 
@@ -448,6 +436,31 @@
           <p class="wizard-error" data-error-for="situacao" hidden>Escolhe uma opção pra continuar.</p>
         </section>
 
+        <!-- ETAPA: ENDEREÇO DO ATENDIMENTO (CARRO E MOTO) -->
+        <section class="wizard-step" data-step="endereco" hidden>
+          <h2 class="wizard-question">Onde está o veículo?</h2>
+          <p class="wizard-address-note">Informe o endereço para o atendimento no local. Você pode buscar pelo CEP ou preencher tudo manualmente.</p>
+          <div class="cep-lookup">
+            <label class="field">
+              <span>CEP (opcional)</span>
+              <input type="text" name="cep" id="cepInput" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" maxlength="9" aria-describedby="cepStatus">
+            </label>
+            <button type="button" class="btn btn-call" id="cepSearchBtn" aria-controls="cepStatus">Buscar CEP</button>
+          </div>
+          <p class="cep-status" id="cepStatus" role="status" aria-live="polite">Busque pelo CEP ou preencha o endereço abaixo.</p>
+          <div class="field-grid">
+            <label class="field field-wide"><span>Rua / avenida *</span><input type="text" name="rua" placeholder="Nome da rua ou avenida" autocomplete="address-line1" maxlength="160"></label>
+            <label class="field"><span>Número *</span><input type="text" name="numero" placeholder="Ex.: 120 ou s/n" maxlength="20"></label>
+            <label class="field"><span>Complemento (opcional)</span><input type="text" name="complemento" placeholder="Ex.: apartamento, bloco ou garagem" autocomplete="address-line2" maxlength="120"></label>
+            <label class="field"><span>Bairro *</span><input type="text" name="bairro" placeholder="Nome do bairro" autocomplete="address-level3" maxlength="100"></label>
+            <label class="field"><span>Cidade *</span><input type="text" name="cidade" placeholder="Cidade onde o veículo está" autocomplete="address-level2" maxlength="100"></label>
+            <label class="field"><span>Estado (UF) *</span><select name="uf" autocomplete="address-level1"><option value="">Selecione</option><option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option></select></label>
+            <label class="field field-wide"><span>Ponto de referência (opcional)</span><input type="text" name="referencia" placeholder="Ex.: próximo ao mercado, entrada pela lateral" maxlength="160"></label>
+          </div>
+          <p class="wizard-error" data-error-for="endereco" hidden>Preencha rua, número (ou s/n), bairro, cidade e UF. Se informar CEP, use os 8 números.</p>
+          <p class="wizard-address-note">A busca consulta o ViaCEP usando o CEP informado. Confira os dados antes de continuar.</p>
+        </section>
+
         <!-- ETAPA: FINALIZAÇÃO -->
         <section class="wizard-step" data-step="final" hidden>
           <h2 class="wizard-question">Só mais um pouco!</h2>
@@ -515,6 +528,7 @@
   </a>
 
   <script src="js/novo.js" defer></script>
-  <script src="js/automotivo.js" defer></script>
+  <script src="js/automotivo-core.js?v=endereco-20261117" defer></script>
+  <script src="js/automotivo.js?v=endereco-20261117" defer></script>
 </body>
 </html>
