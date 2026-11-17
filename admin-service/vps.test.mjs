@@ -32,7 +32,33 @@ test('falha de validação não publica alteração parcial', async () => {
   await assert.rejects(store.save({ revision: base.revision, changes: [{ id: 'produto-fechadura-athenas', priceCents: 70000 }, { id: 'desconhecido', priceCents: 50 }] }));
   assert.equal((await store.snapshot()).revision, base.revision);
 });
-test('API protege login, ativação, CSRF, arquivos privados e revogação da sessão', async () => {
+test('parcelas persistem por produto, sem mudar preço, e repetição é idempotente', async () => {
+  const base = await store.snapshot(), product = base.products.find(p => p.id === 'produto-fechadura-athenas');
+  const before = await readFile(join(base.directory, product.id + '.html'), 'utf8');
+  const changes = [{ id: product.id, installments: 3 }];
+  const saved = await store.save({ revision: base.revision, changes });
+  const current = await createStore(state).snapshot();
+  const updated = current.products.find(p => p.id === product.id);
+  assert.equal(updated.installments, 3); assert.equal(updated.priceCents, product.priceCents);
+  assert.equal(current.products.find(p => p.id === 'produto-fechadura-athenas-vidro').installments, 5);
+  assert.equal(await readFile(join(base.directory, product.id + '.html'), 'utf8'), before);
+  assert.equal((await store.save({ revision: base.revision, changes })).unchanged, true);
+  assert.equal((await store.snapshot()).revision, saved.revision);
+  await assert.rejects(store.save({ revision: base.revision, changes: [{ id: product.id, installments: 8 }] }), e => e.status === 409);
+});
+test('preço e parcelas de dois produtos são publicados juntos; lote inválido não altera nada', async () => {
+  const base = await store.snapshot();
+  const changes = [{ id: 'produto-fechadura-athenas', priceCents: 73100, installments: 7 }, { id: 'produto-fechadura-athenas-vidro', installments: 9 }];
+  await store.save({ revision: base.revision, changes });
+  const current = await store.snapshot();
+  assert.equal(current.products.find(p => p.id === changes[0].id).priceCents, 73100);
+  assert.equal(current.products.find(p => p.id === changes[0].id).installments, 7);
+  assert.equal(current.products.find(p => p.id === changes[1].id).installments, 9);
+  for (const p of current.products.filter(p => !changes.some(c => c.id === p.id))) assert.deepEqual(p, base.products.find(original => original.id === p.id));
+  await assert.rejects(store.save({ revision: current.revision, changes: [{ id: changes[0].id, installments: 4 }, { id: changes[1].id, installments: 25 }] }));
+  assert.equal((await store.snapshot()).revision, current.revision);
+});
+test('API protege login, origem, arquivos privados e revogação da sessão', async () => {
   const setupToken = 'fixture-activation-token-not-a-real-secret';
   process.env.STATE_ROOT = state; process.env.NODE_ENV = 'test'; process.env.PUBLIC_ORIGIN = 'http://localhost:3010';
   process.env.ADMIN_SETUP_TOKEN_SHA256 = createHash('sha256').update(setupToken).digest('hex');
@@ -65,7 +91,17 @@ test('API protege login, ativação, CSRF, arquivos privados e revogação da se
     const creds = JSON.parse(await readFile(join(state, 'private', 'password.json'), 'utf8'));
     assert.notEqual(creds.hash, pw); assert.ok(creds.salt);
     assert.equal(creds.username, 'owner');
-    const result = await fetch(url + '/api/products', { headers: { Cookie: cookie } }); assert.equal(result.status, 200); assert.equal((await result.json()).products.length, 23);
+    const result = await fetch(url + '/api/products', { headers: { Cookie: cookie } }); assert.equal(result.status, 200);
+    const catalog = await result.json(); assert.equal(catalog.products.length, 23);
+    const target = catalog.products.find(p => p.id === 'produto-fechadura-athenas');
+    const installmentChange = { revision: catalog.revision, changes: [{ id: target.id, installments: 4 }] };
+    assert.equal((await post('/api/prices', installmentChange)).status, 401);
+    const savedInstallments = await post('/api/prices', installmentChange, cookie);
+    assert.equal(savedInstallments.status, 200);
+    const savedCatalog = await (await fetch(url + '/api/products', { headers: { Cookie: cookie } })).json();
+    assert.equal(savedCatalog.products.find(p => p.id === target.id).installments, 4);
+    assert.equal(savedCatalog.products.find(p => p.id === target.id).priceCents, target.priceCents);
+    assert.equal((await post('/api/prices', { revision: savedCatalog.revision, changes: [{ id: target.id, installments: 25 }] }, cookie)).status, 400);
     assert.equal((await post('/api/prices', {}, cookie, 'https://attacker.invalid')).status, 403);
     assert.equal((await post('/api/account', { username: 'new-owner', currentPassword: 'incorrect', password: 'new-fixture-password-2026' }, cookie)).status, 400);
     const changed = await post('/api/account', { username: 'new-owner', currentPassword: pw, password: 'new-fixture-password-2026' }, cookie);

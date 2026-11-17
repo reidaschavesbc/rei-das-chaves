@@ -8,6 +8,7 @@
   const $ = (id) => document.getElementById(id);
   const money = (value) => (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const decimal = (value) => (value / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, useGrouping: false });
+  const installmentText = count => count === 0 ? 'Não exibir parcelamento' : count === 1 ? 'Em 1x sem juros' : `Até ${count}x sem juros`;
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
   let username = 'admin';
@@ -49,7 +50,7 @@
   }
   function updateSummary() {
     $('pending-count').textContent = String(pending.size);
-    $('save-summary').textContent = `${pending.size} ${pending.size === 1 ? 'produto com preço alterado' : 'produtos com preços alterados'}`;
+    $('save-summary').textContent = `${pending.size} ${pending.size === 1 ? 'produto alterado' : 'produtos alterados'}`;
     $('save-bar').hidden = pending.size === 0;
     $('review').disabled = errors.size > 0 || busy;
   }
@@ -68,7 +69,7 @@
       image.addEventListener('error', () => { image.hidden = true; media.textContent = 'Imagem indisponível'; });
       media.append(image);
       const body = node('div', 'product-body');
-      body.append(node('span', 'product-category', categories.find(c => c.id === product.category).name), node('h3', '', product.name), node('p', 'current-price', `No site: ${money(product.priceCents)}`));
+      body.append(node('span', 'product-category', categories.find(c => c.id === product.category).name), node('h3', '', product.name), node('p', 'current-price', `No site: ${money(product.priceCents)} · ${installmentText(product.installments)}`));
       const label = node('label', 'price-label', 'Preço de venda');
       label.htmlFor = `price-${product.id}`;
       const field = node('div', 'price-input');
@@ -76,22 +77,44 @@
       input.id = label.htmlFor; input.type = 'text'; input.inputMode = 'decimal'; input.autocomplete = 'off';
       input.value = pending.has(product.id) ? pending.get(product.id).text : decimal(product.priceCents);
       input.disabled = preview || busy;
+      const installmentLabel = node('label', 'installments-label', 'Parcelas sem juros');
+      installmentLabel.htmlFor = `installments-${product.id}`;
+      const installmentSelect = node('select', 'installments-select');
+      installmentSelect.id = installmentLabel.htmlFor;
+      for (let count = 0; count <= 24; count++) {
+        const option = node('option', '', installmentText(count));
+        option.value = String(count); installmentSelect.append(option);
+      }
+      installmentSelect.value = String(pending.has(product.id) ? pending.get(product.id).installments : product.installments);
+      installmentSelect.disabled = preview || busy;
       const state = node('p', 'product-state', pending.has(product.id) ? 'Alteração não salva' : (preview ? 'Visualização do catálogo' : ''));
       state.id = `state-${product.id}`;
       input.setAttribute('aria-describedby', state.id);
-      if (errors.has(product.id)) { input.setAttribute('aria-invalid', 'true'); state.textContent = 'Informe um preço maior que zero, como 750,00.'; }
-      input.addEventListener('input', () => {
+      installmentSelect.setAttribute('aria-describedby', state.id);
+      function syncChange() {
+        if (busy) return;
         const text = input.value.trim();
         const valid = /^\d{1,7}(?:,\d{1,2})?$/.test(text);
         const cents = valid ? Math.round(Number(text.replace(',', '.')) * 100) : 0;
-        const error = !valid || cents < 1 || cents > 99999999;
-        input.setAttribute('aria-invalid', String(error));
+        const installments = Number(installmentSelect.value);
+        const priceError = !valid || cents < 1 || cents > 99999999;
+        const installmentsError = !Number.isSafeInteger(installments) || installments < 0 || installments > 24;
+        const error = priceError || installmentsError;
+        input.setAttribute('aria-invalid', String(priceError));
+        installmentSelect.setAttribute('aria-invalid', String(installmentsError));
         error ? errors.add(product.id) : errors.delete(product.id);
-        if (!error && cents === product.priceCents) { pending.delete(product.id); card.classList.remove('changed'); state.textContent = ''; }
-        else { pending.set(product.id, { priceCents: cents, text }); card.classList.add('changed'); state.textContent = error ? 'Informe um preço válido, como 750,00.' : 'Alteração não salva'; }
+        if (!error && cents === product.priceCents && installments === product.installments) {
+          pending.delete(product.id); card.classList.remove('changed'); state.textContent = preview ? 'Visualização do catálogo' : '';
+        } else {
+          pending.set(product.id, { priceCents: cents, text, installments }); card.classList.add('changed');
+          state.textContent = priceError ? 'Informe um preço válido, como 750,00.' : installmentsError ? 'Escolha uma opção de parcelamento válida.' : 'Alteração não salva';
+        }
         updateSummary();
-      });
-      field.append(node('span', '', 'R$'), input); body.append(label, field, state); card.append(media, body); $('products').append(card);
+      }
+      input.addEventListener('input', syncChange);
+      installmentSelect.addEventListener('change', syncChange);
+      if (errors.has(product.id)) syncChange();
+      field.append(node('span', '', 'R$'), input); body.append(label, field, installmentLabel, installmentSelect, state); card.append(media, body); $('products').append(card);
     }
     $('products').setAttribute('aria-busy', 'false');
     updateSummary();
@@ -107,7 +130,8 @@
         const price = card.querySelector('.product-card-price').textContent.replace(/[^\d,]/g, '').replace(',', '.');
         const image = card.querySelector('img').getAttribute('src');
         if (!/^produto-[\w-]+$/.test(href) || !/^image\/[\w/.-]+$/.test(image)) continue;
-        result.push({ id: href, name: card.querySelector('.product-card-name').textContent, image, category: category.id, priceCents: Math.round(Number(price) * 100) });
+        const installments = Number(card.querySelector('.product-card-installments')?.dataset.installments || 0);
+        result.push({ id: href, name: card.querySelector('.product-card-name').textContent, image, category: category.id, priceCents: Math.round(Number(price) * 100), installments });
       }
     }
     products = result;
@@ -126,13 +150,15 @@
   }
   $('search').addEventListener('input', renderProducts);
   $('only-pending').addEventListener('change', renderProducts);
-  $('reload').addEventListener('click', () => { if (!pending.size || confirm('Descartar as alterações e carregar os preços novamente?')) load(); });
-  $('discard').addEventListener('click', () => { if (confirm('Descartar os preços que ainda não foram salvos?')) { pending.clear(); errors.clear(); renderProducts(); } });
+  $('reload').addEventListener('click', () => { if (!pending.size || confirm('Descartar as alterações e carregar os produtos novamente?')) load(); });
+  $('discard').addEventListener('click', () => { if (confirm('Descartar as alterações que ainda não foram salvas?')) { pending.clear(); errors.clear(); renderProducts(); } });
   $('review').addEventListener('click', () => {
     $('changes').replaceChildren(); $('save-error').textContent = '';
     for (const [id, change] of pending) {
       const product = products.find(p => p.id === id), li = node('li');
-      li.append(node('strong', '', product.name), node('span', '', `${money(product.priceCents)} → ${money(change.priceCents)}`));
+      li.append(node('strong', '', product.name));
+      if (product.priceCents !== change.priceCents) li.append(node('span', 'change-detail', `Preço: ${money(product.priceCents)} → ${money(change.priceCents)}`));
+      if (product.installments !== change.installments) li.append(node('span', 'change-detail', `Parcelamento: ${installmentText(product.installments)} → ${installmentText(change.installments)}`));
       $('changes').append(li);
     }
     $('confirmation').showModal();
@@ -140,13 +166,15 @@
   $('publish').addEventListener('click', async () => {
     if (busy || preview || errors.size || !pending.size) return;
     busy = true; $('publish').disabled = true; $('publish').textContent = 'Salvando…';
+    $('products').inert = true; $('discard').disabled = true; $('reload').disabled = true;
+    const changes = [...pending].map(([id, p]) => ({ id, priceCents: p.priceCents, installments: p.installments }));
     try {
-      const data = await api('prices', { method: 'POST', body: JSON.stringify({ revision, changes: [...pending].map(([id, p]) => ({ id, priceCents: p.priceCents })) }) });
-      for (const [id, change] of pending) products.find(p => p.id === id).priceCents = change.priceCents;
+      const data = await api('prices', { method: 'POST', body: JSON.stringify({ revision, changes }) });
+      for (const change of changes) Object.assign(products.find(p => p.id === change.id), { priceCents: change.priceCents, installments: change.installments });
       revision = data.revision; pending.clear(); errors.clear(); $('confirmation').close(); renderProducts();
-      message(data.unchanged ? 'Os preços já estavam salvos. Nenhuma alteração adicional foi publicada.' : 'Preços salvos e publicados no site.');
+      message(data.unchanged ? 'As alterações já estavam salvas. Nenhuma publicação adicional foi necessária.' : 'Preços e parcelas salvos e publicados no site.');
     } catch (error) { $('save-error').textContent = error.message; }
-    finally { busy = false; $('publish').disabled = false; $('publish').textContent = 'Salvar e publicar'; updateSummary(); }
+    finally { busy = false; $('products').inert = false; $('discard').disabled = false; $('reload').disabled = false; $('publish').disabled = false; $('publish').textContent = 'Salvar e publicar'; renderProducts(); }
   });
   $('confirmation').addEventListener('cancel', event => { if (busy) event.preventDefault(); });
   $('confirmation').addEventListener('submit', event => { if (busy) event.preventDefault(); });

@@ -735,3 +735,9 @@
   border: 0;
   background: #000;
 }
+
+/* Parcelamento individual, logo abaixo do preço. */
+.product-price-row:has(+ .product-installments) { margin-bottom: 0; }
+.product-installments { margin: 6px 0 18px; color: #eee6d5; font-size: 15px; line-height: 1.4; }
+.product-card-installments { margin: 4px 0 0; color: #d7c7a4; font-size: 12px; line-height: 1.4; }
+.sticky-buy-installments { margin-top: 2px; color: #d7c7a4; font-size: 11px; line-height: 1.3; }

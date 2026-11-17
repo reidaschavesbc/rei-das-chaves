@@ -6,7 +6,7 @@ const code = await readFile(process.env.FRONTEND_SOURCE || new URL('../admin/adm
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function page({ token = '', storage = new Map(), request, invitationReady = false } = {}) {
   const elements = new Map();
-  const make = () => ({ hidden: false, disabled: false, value: '', textContent: '', events: {}, classList: { toggle() {}, add() {}, remove() {} }, addEventListener(event, handler) { this.events[event] = handler; }, querySelector() { return this.button ||= make(); }, focus() {}, reset() {}, setAttribute() {}, replaceChildren() {}, append() {}, showModal() {}, close() {} });
+  const make = () => ({ hidden: false, disabled: false, value: '', textContent: '', children: [], events: {}, set id(value) { this._id = value; elements.set(value, this); }, get id() { return this._id; }, classList: { toggle() {}, add() {}, remove() {} }, addEventListener(event, handler) { this.events[event] = handler; }, querySelector() { return this.button ||= make(); }, focus() {}, reset() {}, setAttribute() {}, replaceChildren() { this.children = []; }, append(...children) { this.children.push(...children); }, showModal() {}, close() {} });
   const get = id => { if (!elements.has(id)) elements.set(id, make()); return elements.get(id); };
   const context = {
     document: { getElementById: get, createElement: make },
@@ -52,4 +52,38 @@ test('credenciais incorretas exibem mensagem sem prender o botão', async () => 
   await ui.get('login-form').events.submit({ preventDefault() {}, currentTarget: ui.get('login-form') });
   assert.equal(ui.get('login-form').querySelector('button').disabled, false);
   assert.match(ui.get('login-message').textContent, /inválidos/);
+});
+
+test('painel salva parcelas sozinhas, mostra revisão e mantém campos editáveis após salvar', async () => {
+  let submitted, writeRequests = 0;
+  const product = { id: 'produto-fixture', name: 'Fechadura de teste', image: 'image/fixture.png', category: 'eletronicas', priceCents: 99000, installments: 5 };
+  const ui = page({ request: async (url, options) => {
+    if (url === '/api/login') return { ok: true, status: 200, json: async () => ({ authenticated: true, username: 'admin' }) };
+    if (url === '/api/products') return { ok: true, status: 200, json: async () => ({ products: [product], revision: 'original' }) };
+    assert.equal(url, '/api/prices'); writeRequests++; submitted = JSON.parse(options.body);
+    return { ok: true, status: 200, json: async () => ({ revision: 'saved', unchanged: false }) };
+  } });
+  await tick(); ui.get('username').value = 'admin'; ui.get('password').value = 'admin';
+  await ui.get('login-form').events.submit({ preventDefault() {}, currentTarget: ui.get('login-form') });
+  ui.get('installments-produto-fixture').value = '8';
+  ui.get('installments-produto-fixture').events.change();
+  assert.equal(ui.get('pending-count').textContent, '1');
+  ui.get('review').events.click();
+  assert.match(ui.get('changes').children[0].children[1].textContent, /5x sem juros → Até 8x sem juros/);
+  const saving = ui.get('publish').events.click();
+  await ui.get('publish').events.click();
+  await saving;
+  assert.equal(writeRequests, 1);
+  assert.deepEqual(submitted, { revision: 'original', changes: [{ id: product.id, priceCents: 99000, installments: 8 }] });
+  assert.equal(ui.get('installments-produto-fixture').value, '8');
+  assert.equal(ui.get('installments-produto-fixture').disabled, false);
+  assert.equal(ui.get('price-produto-fixture').disabled, false);
+  assert.equal(ui.get('pending-count').textContent, '0');
+  ui.get('price-produto-fixture').value = '1290,00';
+  ui.get('price-produto-fixture').events.input();
+  ui.get('installments-produto-fixture').value = '10';
+  ui.get('installments-produto-fixture').events.change();
+  await ui.get('publish').events.click();
+  assert.deepEqual(submitted, { revision: 'saved', changes: [{ id: product.id, priceCents: 129000, installments: 10 }] });
+  assert.equal(ui.get('installments-produto-fixture').disabled, false);
 });

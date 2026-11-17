@@ -31,14 +31,17 @@ export function createStore(stateRoot) {
   async function save(data) {
     const base = await snapshot();
     validateChanges(data.changes, base.products);
-    const changes = data.changes.filter(c => base.products.find(p => p.id === c.id).priceCents !== c.priceCents);
+    const changes = data.changes.filter(c => {
+      const product = base.products.find(p => p.id === c.id);
+      return Object.hasOwn(c, 'priceCents') && product.priceCents !== c.priceCents || Object.hasOwn(c, 'installments') && product.installments !== c.installments;
+    });
     if (!changes.length) return { revision: base.revision, unchanged: true };
     if (data.revision !== base.revision) { const error = new Error('O catálogo mudou em outra sessão. Atualize a lista antes de salvar.'); error.status = 409; throw error; }
     const revision = `${Date.now()}-${randomUUID()}`, directory = join(releases, revision), modified = new Map();
     for (const change of changes) {
       const product = base.products.find(p => p.id === change.id);
-      modified.set(`${product.id}.html`, updateProduct(await readFile(join(base.directory, `${product.id}.html`), 'utf8'), change.priceCents));
-      modified.set(product.catalog, updateCatalog(modified.get(product.catalog) || base.pages.get(product.catalog), product.id, change.priceCents));
+      modified.set(`${product.id}.html`, updateProduct(await readFile(join(base.directory, `${product.id}.html`), 'utf8'), change.priceCents, change.installments));
+      modified.set(product.catalog, updateCatalog(modified.get(product.catalog) || base.pages.get(product.catalog), product.id, change.priceCents, change.installments));
     }
     await copyLinks(base.directory, directory);
     for (const [file, content] of modified) await replaceFile(directory, file, content);

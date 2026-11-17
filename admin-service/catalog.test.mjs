@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { categories, parseCatalog, validateChanges, updateCatalog, updateProduct, formatPrice } from './catalog.mjs';
+import { categories, parseCatalog, validateChanges, updateCatalog, updateProduct, formatPrice, formatInstallments } from './catalog.mjs';
 const source = process.env.SITE_SOURCE;
 if (!source) throw new Error('Informe SITE_SOURCE apontando para os arquivos públicos do site.');
 const catalogs = new Map(await Promise.all(categories.map(async c => [c.file, await readFile(resolve(source, c.file), 'utf8')])));
@@ -49,4 +49,37 @@ test('Dubai Wi-Fi tem preço editável separado da Dubai Face ID', async () => {
   const parsed = parseCatalog(catalog, categories[0]);
   assert.equal(parsed.find(p => p.id === id).priceCents, 12345);
   assert.equal(parsed.find(p => p.id === face.id).priceCents, face.priceCents);
+});
+
+test('todos os produtos começam com cinco parcelas individuais', () => {
+  assert.equal(products.length, 23);
+  for (const product of products) assert.equal(product.installments, 5, product.id);
+});
+test('alterar só parcelas preserva preço e condições dos outros produtos', async () => {
+  const product = products[0], catalog = catalogs.get(product.catalog);
+  const changed = parseCatalog(updateCatalog(catalog, product.id, undefined, 8), categories[0]);
+  assert.equal(changed.find(p => p.id === product.id).installments, 8);
+  assert.equal(changed.find(p => p.id === product.id).priceCents, product.priceCents);
+  for (const p of changed.filter(p => p.id !== product.id)) assert.deepEqual(p, products.find(original => original.id === p.id));
+  const html = await readFile(resolve(source, product.id + '.html'), 'utf8');
+  const after = updateProduct(html, undefined, 8);
+  assert.equal((after.match(/Até 8x sem juros/g) || []).length, 2);
+  assert.deepEqual(after.match(/class="(?:product-price|sticky-buy-price)">[^<]+/g), html.match(/class="(?:product-price|sticky-buy-price)">[^<]+/g));
+});
+test('parcelamento pode ser ocultado e restaurado, inclusive para uma parcela', async () => {
+  const html = await readFile(resolve(source, products[0].id + '.html'), 'utf8');
+  const hidden = updateProduct(html, undefined, 0);
+  assert.equal((hidden.match(/data-installments="0" hidden>/g) || []).length, 2);
+  assert.doesNotMatch(hidden, /Até 0x/);
+  const restored = updateProduct(hidden, undefined, 1);
+  assert.equal((restored.match(/Em 1x sem juros/g) || []).length, 2);
+  assert.doesNotMatch(restored, /data-installments="1" hidden/);
+  assert.equal(formatInstallments(24), 'Até 24x sem juros');
+});
+test('servidor rejeita parcelas inválidas e aceita alteração isolada ou combinada', () => {
+  const id = products[0].id;
+  for (const installments of [-1,25,1.5,'5',null,Infinity]) assert.throws(() => validateChanges([{ id, installments }], products));
+  assert.throws(() => validateChanges([{ id }], products));
+  validateChanges([{ id, installments: 8 }], products);
+  validateChanges([{ id, priceCents: 99000, installments: 3 }], products);
 });
