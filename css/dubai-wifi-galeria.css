@@ -1,0 +1,16 @@
+/* Amplia apenas a foto dupla, compensando suas margens transparentes. */
+.dubai-wifi-gallery .product-detail-media,
+.dubai-wifi-gallery .product-thumb {
+  position: relative;
+}
+.dubai-wifi-gallery .product-detail-media img[src$="/fechadura-dubai-wifi-frente-verso.png"],
+.dubai-wifi-gallery .product-thumb img[src$="/fechadura-dubai-wifi-frente-verso.png"] {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 166%;
+  height: 166%;
+  max-width: none;
+  padding: 0;
+  transform: translate(-51.6%, -55.7%);
+}
