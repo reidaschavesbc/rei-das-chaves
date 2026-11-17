@@ -58,6 +58,6 @@ O acesso padrao admin/admin continua conforme solicitado pelo proprietario. Enqu
 
 ## Parcelas sem juros por produto
 
-Cada produto armazena `installments` no HTML do catálogo e exibe a condição abaixo do preço, na página e na barra fixa. A implantação inicial usa 5 parcelas para os 23 produtos. O admin permite de 1 a 24 parcelas, além da opção Não exibir (valor 0). Preço e parcelas podem ser salvos juntos ou separadamente, com revisão de catálogo, validação no servidor e publicação atômica. Não foi adicionado banco de dados.
+Cada produto armazena `installments` no HTML do catálogo e exibe a condição abaixo do preço, na página e na barra fixa. A implantação inicial usa 5 parcelas para os 23 produtos. O admin permite de 1 a 10 parcelas, além da opção Não exibir (valor 0). Preço e parcelas podem ser salvos juntos ou separadamente, com revisão de catálogo, validação no servidor e publicação atômica. Não foi adicionado banco de dados.
 
 A API existente `/api/prices` aceita `priceCents`, `installments` ou ambos por produto. Clientes antigos que enviam apenas preço preservam as parcelas. Repetições idênticas são idempotentes, revisões antigas conflitantes são recusadas e um lote inválido não é publicado parcialmente. Os valores salvos pelo painel continuam na VPS; o GitHub mantém o código e os valores iniciais, e um deploy deve preservar as condições ativas.

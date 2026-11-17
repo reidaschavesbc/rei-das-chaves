@@ -81,7 +81,7 @@
       installmentLabel.htmlFor = `installments-${product.id}`;
       const installmentSelect = node('select', 'installments-select');
       installmentSelect.id = installmentLabel.htmlFor;
-      for (let count = 0; count <= 24; count++) {
+      for (let count = 0; count <= 10; count++) {
         const option = node('option', '', installmentText(count));
         option.value = String(count); installmentSelect.append(option);
       }
@@ -98,7 +98,7 @@
         const cents = valid ? Math.round(Number(text.replace(',', '.')) * 100) : 0;
         const installments = Number(installmentSelect.value);
         const priceError = !valid || cents < 1 || cents > 99999999;
-        const installmentsError = !Number.isSafeInteger(installments) || installments < 0 || installments > 24;
+        const installmentsError = !Number.isSafeInteger(installments) || installments < 0 || installments > 10;
         const error = priceError || installmentsError;
         input.setAttribute('aria-invalid', String(priceError));
         installmentSelect.setAttribute('aria-invalid', String(installmentsError));

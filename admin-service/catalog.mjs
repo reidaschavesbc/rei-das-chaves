@@ -5,7 +5,7 @@ export const categories = [
 ];
 export const formatPrice = cents => `R$ ${(cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const formatInstallments = count => count === 0 ? '' : count === 1 ? 'Em 1x sem juros' : `Até ${count}x sem juros`;
-export const validInstallments = count => Number.isSafeInteger(count) && count >= 0 && count <= 24;
+export const validInstallments = count => Number.isSafeInteger(count) && count >= 0 && count <= 10;
 export function parsePrice(text) {
   const match = text.trim().match(/^R\$\s*([\d.]+),(\d{2})$/);
   if (!match) throw new Error('Preço do catálogo inválido.');

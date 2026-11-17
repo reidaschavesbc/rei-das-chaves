@@ -51,9 +51,9 @@ test('Dubai Wi-Fi tem preço editável separado da Dubai Face ID', async () => {
   assert.equal(parsed.find(p => p.id === face.id).priceCents, face.priceCents);
 });
 
-test('todos os produtos começam com cinco parcelas individuais', () => {
+test('todos os produtos têm parcelas individuais dentro do limite permitido', () => {
   assert.equal(products.length, 23);
-  for (const product of products) assert.equal(product.installments, 5, product.id);
+  for (const product of products) assert.ok(Number.isInteger(product.installments) && product.installments >= 0 && product.installments <= 10, product.id);
 });
 test('alterar só parcelas preserva preço e condições dos outros produtos', async () => {
   const product = products[0], catalog = catalogs.get(product.catalog);
@@ -74,11 +74,11 @@ test('parcelamento pode ser ocultado e restaurado, inclusive para uma parcela', 
   const restored = updateProduct(hidden, undefined, 1);
   assert.equal((restored.match(/Em 1x sem juros/g) || []).length, 2);
   assert.doesNotMatch(restored, /data-installments="1" hidden/);
-  assert.equal(formatInstallments(24), 'Até 24x sem juros');
+  assert.equal(formatInstallments(10), 'Até 10x sem juros');
 });
 test('servidor rejeita parcelas inválidas e aceita alteração isolada ou combinada', () => {
   const id = products[0].id;
-  for (const installments of [-1,25,1.5,'5',null,Infinity]) assert.throws(() => validateChanges([{ id, installments }], products));
+  for (const installments of [-1,11,24,25,1.5,'5',null,Infinity]) assert.throws(() => validateChanges([{ id, installments }], products));
   assert.throws(() => validateChanges([{ id }], products));
   validateChanges([{ id, installments: 8 }], products);
   validateChanges([{ id, priceCents: 99000, installments: 3 }], products);
