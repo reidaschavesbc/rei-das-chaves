@@ -10,6 +10,7 @@
   const decimal = (value) => (value / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, useGrouping: false });
   const installmentText = count => count === 0 ? 'Não exibir parcelamento' : count === 1 ? 'Em 1x sem juros' : `Até ${count}x sem juros`;
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const viewStorageKey = 'rdc_admin_view';
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
   let username = 'admin';
   let statsOpen = false, statsRequest = 0;
@@ -39,6 +40,20 @@
     $('message').textContent = text;
     $('message').classList.toggle('error', error);
   }
+  function showView(view) {
+    statsOpen = view === 'stats';
+    if (!statsOpen) activeCategory = categories.some(category => category.id === view) ? view : 'all';
+    $('catalog-view').hidden = statsOpen;
+    $('stats-view').hidden = !statsOpen;
+    updateSummary();
+  }
+  function selectView(view) {
+    try { sessionStorage.setItem(viewStorageKey, view); } catch {}
+    showView(view);
+    renderCategories();
+    if (statsOpen) loadStats();
+    else renderProducts();
+  }
   function renderCategories() {
     $('categories').replaceChildren();
     for (const category of [{ id: 'all', name: 'Todos os produtos' }, ...categories]) {
@@ -46,22 +61,14 @@
       button.type = 'button';
       button.setAttribute('aria-current', String(!statsOpen && activeCategory === category.id));
       button.append(node('span', '', category.name), node('span', 'count', String(products.filter(p => category.id === 'all' || p.category === category.id).length)));
-      button.addEventListener('click', () => {
-        statsOpen = false;
-        $('catalog-view').hidden = false; $('stats-view').hidden = true;
-        activeCategory = category.id; renderCategories(); renderProducts();
-      });
+      button.addEventListener('click', () => selectView(category.id));
       $('categories').append(button);
     }
     if (!preview) {
       const statsButton = node('button', 'category-button', 'Estatísticas');
       statsButton.type = 'button';
       statsButton.setAttribute('aria-current', String(statsOpen));
-      statsButton.addEventListener('click', () => {
-        statsOpen = true;
-        $('catalog-view').hidden = true; $('stats-view').hidden = false;
-        renderCategories(); updateSummary(); loadStats();
-      });
+      statsButton.addEventListener('click', () => selectView('stats'));
       $('categories').append(statsButton);
     }
   }
@@ -268,8 +275,11 @@
   }
   async function authenticated(data) {
     username = data.username || 'admin'; $('account-name').textContent = username;
+    let view;
+    try { view = sessionStorage.getItem(viewStorageKey); } catch {}
+    showView(view);
     $('login').hidden = true; $('account-screen').hidden = true; $('dashboard').hidden = false;
-    await load();
+    await Promise.all([load(), statsOpen && loadStats()]);
   }
   $('account-settings').addEventListener('click', openAccount);
   $('account-back').addEventListener('click', () => { $('account-screen').hidden = true; $('dashboard').hidden = false; });

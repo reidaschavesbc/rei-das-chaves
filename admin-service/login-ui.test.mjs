@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const code = await readFile(process.env.FRONTEND_SOURCE || new URL('../admin/admin.js', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-function page({ token = '', storage = new Map(), request, invitationReady = false } = {}) {
+function page({ token = '', storage = new Map(), request, invitationReady = false, authenticated = false } = {}) {
   const elements = new Map();
   const make = () => ({ hidden: false, disabled: false, value: '', textContent: '', children: [], events: {}, set id(value) { this._id = value; elements.set(value, this); }, get id() { return this._id; }, classList: { toggle() {}, add() {}, remove() {} }, addEventListener(event, handler) { this.events[event] = handler; }, querySelector() { return this.button ||= make(); }, focus() {}, reset() {}, setAttribute() {}, replaceChildren() { this.children = []; }, append(...children) { this.children.push(...children); }, showModal() {}, close() {} });
   const get = id => { if (!elements.has(id)) elements.set(id, make()); return elements.get(id); };
@@ -16,13 +16,34 @@ function page({ token = '', storage = new Map(), request, invitationReady = fals
     sessionStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     URLSearchParams, AbortSignal,
     fetch: async (url, options) => {
-      if (url === '/api/session') return { ok: true, status: 200, json: async () => ({ service: 'rei-das-chaves-admin', authenticated: false, setupRequired: true, invitationReady }) };
+      if (url === '/api/session') return { ok: true, status: 200, json: async () => ({ service: 'rei-das-chaves-admin', authenticated, setupRequired: true, invitationReady }) };
       return request(url, options);
     }
   };
   vm.runInNewContext(code, context);
   return { get, storage };
 }
+test('recarregar o admin restaura Estatísticas e a última categoria selecionada', async () => {
+  const storage = new Map();
+  const request = async url => {
+    if (url === '/api/products') return { ok: true, json: async () => ({ products: [], revision: 'fixture' }) };
+    assert.match(url, /^\/api\/analytics\?days=/);
+    return { ok: true, json: async () => ({ totals: { views: 7, whatsapp: 2, phone: 1 }, pages: [], resetRevision: 'initial' }) };
+  };
+  const first = page({ storage, request, authenticated: true });
+  await tick();
+  first.get('categories').children.at(-1).events.click();
+  const reloaded = page({ storage, request, authenticated: true });
+  await tick();
+  assert.equal(reloaded.get('catalog-view').hidden, true);
+  assert.equal(reloaded.get('stats-view').hidden, false);
+  assert.equal(reloaded.get('stats-views').textContent, '7');
+  reloaded.get('categories').children[1].events.click();
+  const catalog = page({ storage, request, authenticated: true });
+  await tick();
+  assert.equal(catalog.get('stats-view').hidden, true);
+  assert.equal(catalog.get('category-title').textContent, 'Eletrônicas');
+});
 test('admin/admin entra direto pela URL normal e mostra os produtos sem convite ou troca obrigatória', async () => {
   let submitted;
   const ui = page({ request: async (url, options) => {
