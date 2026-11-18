@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Painel de produtos | Rei das Chaves</title>
   <link rel="icon" href="/image/favicon-32x32.png">
-  <link rel="stylesheet" href="/admin/admin.css?v=estatisticas-20261118">
-  <script src="/admin/admin.js?v=estatisticas-20261118" defer></script>
+  <link rel="stylesheet" href="/admin/admin.css?v=estatisticas-reset">
+  <script src="/admin/admin.js?v=estatisticas-reset" defer></script>
 </head>
 <body>
   <section id="login" class="login-shell" hidden>
@@ -78,6 +78,7 @@
             <option value="1">Hoje</option><option value="7" selected>Últimos 7 dias</option><option value="30">Últimos 30 dias</option>
           </select>
           <button id="stats-refresh" type="button" class="secondary">Atualizar</button>
+          <button id="stats-reset" type="button" class="secondary stats-danger" disabled>Zerar estatísticas</button>
         </div>
         <section class="overview" aria-label="Totais do período">
           <div><strong id="stats-views">—</strong><span>Visualizações</span></div>
@@ -98,5 +99,14 @@
     <footer id="save-bar" class="save-bar" hidden><div><strong id="save-summary"></strong><span>Confira os valores e as parcelas antes de publicar.</span></div><div class="save-actions"><button id="discard" class="secondary">Descartar</button><button id="review" class="primary">Revisar alterações</button></div></footer>
   </div>
   <dialog id="confirmation"><form method="dialog"><div class="dialog-heading"><h2>Conferir preços e parcelas</h2><button value="cancel" class="text-button" aria-label="Fechar">✕</button></div><p>Preços e parcelas serão atualizados juntos no catálogo e nas páginas dos produtos.</p><ul id="changes"></ul><p id="save-error" role="alert"></p><div class="dialog-actions"><button value="cancel" class="secondary">Voltar</button><button id="publish" type="button" class="primary">Salvar e publicar</button></div></form></dialog>
+  <dialog id="stats-reset-dialog" aria-labelledby="stats-reset-title" aria-describedby="stats-reset-description">
+    <h2 id="stats-reset-title">Zerar estatísticas?</h2>
+    <p id="stats-reset-description">Isso apaga as visualizações e os cliques de todas as páginas e períodos. A contagem recomeça a partir das próximas interações.</p>
+    <p id="stats-reset-error" class="message error" role="alert"></p>
+    <form method="dialog" class="dialog-actions">
+      <button id="stats-reset-cancel" type="submit" class="secondary" autofocus>Cancelar</button>
+      <button id="stats-reset-confirm" type="button" class="secondary stats-danger">Zerar estatísticas</button>
+    </form>
+  </dialog>
 </body>
 </html>

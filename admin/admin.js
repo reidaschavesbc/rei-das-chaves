@@ -13,6 +13,7 @@
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
   let username = 'admin';
   let statsOpen = false, statsRequest = 0;
+  let statsResetRevision;
   try { sessionStorage.removeItem('rdc_activation_token'); } catch {}
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   const pending = new Map();
@@ -64,15 +65,18 @@
       $('categories').append(statsButton);
     }
   }
-  async function loadStats() {
+  async function loadStats(success = '') {
     const request = ++statsRequest;
+    $('stats-reset').disabled = true;
     $('stats-status').textContent = 'Buscando estatísticas…';
     $('stats-status').classList.remove('error');
     $('stats-pages').replaceChildren();
     for (const metric of ['views', 'whatsapp', 'phone']) $('stats-' + metric).textContent = '—';
     try {
-      const { totals, pages } = await api('analytics?days=' + $('stats-days').value);
+      const { totals, pages, resetRevision } = await api('analytics?days=' + $('stats-days').value);
       if (request !== statsRequest) return;
+      statsResetRevision = resetRevision;
+      $('stats-reset').disabled = !resetRevision;
       for (const metric of ['views', 'whatsapp', 'phone']) $('stats-' + metric).textContent = totals[metric].toLocaleString('pt-BR');
       for (const item of pages) {
         const row = node('tr');
@@ -83,15 +87,41 @@
         row.append(page, ...['views', 'whatsapp', 'phone'].map(metric => node('td', '', item[metric].toLocaleString('pt-BR'))));
         $('stats-pages').append(row);
       }
-      $('stats-status').textContent = pages.length ? '' : 'Ainda não há visualizações ou cliques registrados neste período.';
+      $('stats-status').textContent = success || (pages.length ? '' : 'Ainda não há visualizações ou cliques registrados neste período.');
     } catch (error) {
       if (request !== statsRequest) return;
       $('stats-status').textContent = error.message;
       $('stats-status').classList.add('error');
     }
   }
-  $('stats-days').addEventListener('change', loadStats);
-  $('stats-refresh').addEventListener('click', loadStats);
+  $('stats-days').addEventListener('change', () => loadStats());
+  $('stats-refresh').addEventListener('click', () => loadStats());
+
+  const resetDialog = $('stats-reset-dialog');
+  const resetConfirm = $('stats-reset-confirm');
+  const resetCancel = $('stats-reset-cancel');
+  $('stats-reset').addEventListener('click', () => {
+    $('stats-reset-error').textContent = '';
+    resetDialog.showModal();
+  });
+  resetDialog.addEventListener('cancel', event => {
+    if (resetConfirm.disabled) event.preventDefault();
+  });
+  resetConfirm.addEventListener('click', async () => {
+    resetConfirm.disabled = resetCancel.disabled = true;
+    $('stats-reset-error').textContent = '';
+    try {
+      await api('analytics/reset', { method: 'POST', body: JSON.stringify({ resetRevision: statsResetRevision }) });
+      resetDialog.close();
+      await loadStats('Estatísticas zeradas. A contagem foi reiniciada.');
+      $('stats-reset').focus();
+    } catch (error) {
+      if ($('dashboard').hidden) resetDialog.close();
+      else $('stats-reset-error').textContent = error.message;
+    } finally {
+      resetConfirm.disabled = resetCancel.disabled = false;
+    }
+  });
 
   function updateSummary() {
     $('pending-count').textContent = String(pending.size);

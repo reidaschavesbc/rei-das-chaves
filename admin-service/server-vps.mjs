@@ -138,6 +138,15 @@ export const server = http.createServer(async (req, res) => {
       if (![1, 7, 30].includes(days)) throw new RequestError('Período inválido.');
       send(res, 200, await analytics.report(days)); return;
     }
+    if (path === '/api/analytics/reset' && req.method === 'POST') {
+      const { resetRevision } = await body(req);
+      if (typeof resetRevision !== 'string') throw new RequestError('Atualize as estatísticas antes de zerar.');
+      let reset;
+      try { reset = await analytics.reset(resetRevision); }
+      catch { throw new RequestError('Não foi possível zerar as estatísticas. Tente novamente.', 500); }
+      if (!reset) throw new RequestError('As estatísticas já foram zeradas. Feche esta janela e clique em Atualizar.', 409);
+      send(res, 200, { reset: true }); return;
+    }
     if (path === '/api/products' && req.method === 'GET') { const data = await store.snapshot(); send(res, 200, { revision: data.revision, products: data.products }); return; }
     if (path === '/api/prices' && req.method === 'POST') {
       const data = await body(req); try { send(res, 200, await store.save(data)); } catch (e) { throw new RequestError(e.message, e.status || 400); } return;

@@ -183,3 +183,6 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline-color: var(
 .stats-table tbody tr:last-child > * { border-bottom: 0; }
 .stats-table tbody a { text-decoration-color: var(--muted); text-underline-offset: 3px; text-transform: capitalize; }
 .stats-note { margin-top: 12px; }
+.secondary.stats-danger { color: #ffc1bc; border-color: #97544e; background: #552a2a; }
+.secondary.stats-danger:hover:enabled { background: #713431; }
+#stats-reset-title { margin: 0; font-size: 22px; }
