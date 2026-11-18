@@ -172,3 +172,14 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline-color: var(
 .installments-select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .installments-select[aria-invalid="true"] { border-color: #ffb3a9; }
 .change-detail { display: block; margin-top: 5px; }
+
+.stats-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.stats-controls select { width: auto; }
+#stats-view h2 { font-size: 19px; margin: 24px 0 12px; }
+.stats-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #303638e8; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stats-table th, .stats-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.stats-table tr > :first-child { text-align: left; }
+.stats-table tbody tr:last-child > * { border-bottom: 0; }
+.stats-table tbody a { text-decoration-color: var(--muted); text-underline-offset: 3px; text-transform: capitalize; }
+.stats-note { margin-top: 12px; }

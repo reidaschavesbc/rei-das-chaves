@@ -6,10 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { createStore } from './local-store.mjs';
+import { createAnalytics } from './analytics.mjs';
 const derive = promisify(scrypt), appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const stateRoot = resolve(process.env.STATE_ROOT || join(appRoot, '.local-state'));
 const privateRoot = join(stateRoot, 'private'), passwordFile = join(privateRoot, 'password.json');
 const store = createStore(stateRoot), port = Number(process.env.PORT || 3010);
+const analytics = createAnalytics(privateRoot, join(stateRoot, 'current'));
 const production = process.env.NODE_ENV === 'production';
 const origin = process.env.PUBLIC_ORIGIN || (!production ? `http://localhost:${port}` : '');
 const validOrigin = Boolean(origin && (!production || origin.startsWith('https://')));
@@ -82,6 +84,15 @@ export const server = http.createServer(async (req, res) => {
     if (!validOrigin) { send(res, 503, { service: 'rei-das-chaves-admin', error: 'O acesso seguro ainda precisa ser configurado.' }); return; }
     if (!['GET', 'POST'].includes(req.method)) throw new RequestError('Método não permitido.', 405);
     if (req.method === 'POST' && req.headers.origin !== origin) throw new RequestError('Origem de acesso inválida.', 403);
+    if (path === '/api/analytics/events' && req.method === 'POST') {
+      // The browser sends anonymous events only from the public site.
+      if (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') {
+        throw new RequestError('Origem de acesso inválida.', 403);
+      }
+      if (!await analytics.record(await body(req))) throw new RequestError('Evento inválido ou indisponível.');
+      res.writeHead(204, { 'Cache-Control': 'no-store' }).end();
+      return;
+    }
     if (path === '/api/session' && req.method === 'GET') {
       const session = getSession(req);
       send(res, 200, { service: 'rei-das-chaves-admin', authenticated: Boolean(session), setupRequired: false, username: session?.username, mustChangeCredentials: false }); return;
@@ -121,6 +132,11 @@ export const server = http.createServer(async (req, res) => {
         await writeFile(temp, value, { flag: 'wx', mode: 0o600 }); await rename(temp, passwordFile);
       }
       sessions.clear(); login(req, res, data.username); return;
+    }
+    if (path === '/api/analytics' && req.method === 'GET') {
+      const days = Number(new URL(req.url, 'http://localhost').searchParams.get('days') ?? '7');
+      if (![1, 7, 30].includes(days)) throw new RequestError('Período inválido.');
+      send(res, 200, await analytics.report(days)); return;
     }
     if (path === '/api/products' && req.method === 'GET') { const data = await store.snapshot(); send(res, 200, { revision: data.revision, products: data.products }); return; }
     if (path === '/api/prices' && req.method === 'POST') {

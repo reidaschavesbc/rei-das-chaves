@@ -179,6 +179,7 @@
     // Recheck the complete active path; hidden answers from another service are ignored.
     const invalid = seq.findIndex(step => !validate(step));
     if (invalid !== -1) { index = invalid; render(); return; }
+    document.dispatchEvent(new Event('rdc:whatsapp'));
     window.open(`https://wa.me/5547991713761?text=${encodeURIComponent(core.buildMessage(answers))}`, '_blank', 'noopener,noreferrer');
   });
   render();

@@ -12,6 +12,7 @@
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
   let username = 'admin';
+  let statsOpen = false, statsRequest = 0;
   try { sessionStorage.removeItem('rdc_activation_token'); } catch {}
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   const pending = new Map();
@@ -42,16 +43,60 @@
     for (const category of [{ id: 'all', name: 'Todos os produtos' }, ...categories]) {
       const button = node('button', 'category-button');
       button.type = 'button';
-      button.setAttribute('aria-current', String(activeCategory === category.id));
+      button.setAttribute('aria-current', String(!statsOpen && activeCategory === category.id));
       button.append(node('span', '', category.name), node('span', 'count', String(products.filter(p => category.id === 'all' || p.category === category.id).length)));
-      button.addEventListener('click', () => { activeCategory = category.id; renderCategories(); renderProducts(); });
+      button.addEventListener('click', () => {
+        statsOpen = false;
+        $('catalog-view').hidden = false; $('stats-view').hidden = true;
+        activeCategory = category.id; renderCategories(); renderProducts();
+      });
       $('categories').append(button);
     }
+    if (!preview) {
+      const statsButton = node('button', 'category-button', 'Estatísticas');
+      statsButton.type = 'button';
+      statsButton.setAttribute('aria-current', String(statsOpen));
+      statsButton.addEventListener('click', () => {
+        statsOpen = true;
+        $('catalog-view').hidden = true; $('stats-view').hidden = false;
+        renderCategories(); updateSummary(); loadStats();
+      });
+      $('categories').append(statsButton);
+    }
   }
+  async function loadStats() {
+    const request = ++statsRequest;
+    $('stats-status').textContent = 'Buscando estatísticas…';
+    $('stats-status').classList.remove('error');
+    $('stats-pages').replaceChildren();
+    for (const metric of ['views', 'whatsapp', 'phone']) $('stats-' + metric).textContent = '—';
+    try {
+      const { totals, pages } = await api('analytics?days=' + $('stats-days').value);
+      if (request !== statsRequest) return;
+      for (const metric of ['views', 'whatsapp', 'phone']) $('stats-' + metric).textContent = totals[metric].toLocaleString('pt-BR');
+      for (const item of pages) {
+        const row = node('tr');
+        const title = item.page === '/' ? 'Página inicial' : item.page.slice(1).replace(/^produto-/, '').replaceAll('-', ' ');
+        const link = node('a', '', title);
+        link.href = item.page; link.target = '_blank'; link.rel = 'noopener';
+        const page = node('th'); page.scope = 'row'; page.append(link);
+        row.append(page, ...['views', 'whatsapp', 'phone'].map(metric => node('td', '', item[metric].toLocaleString('pt-BR'))));
+        $('stats-pages').append(row);
+      }
+      $('stats-status').textContent = pages.length ? '' : 'Ainda não há visualizações ou cliques registrados neste período.';
+    } catch (error) {
+      if (request !== statsRequest) return;
+      $('stats-status').textContent = error.message;
+      $('stats-status').classList.add('error');
+    }
+  }
+  $('stats-days').addEventListener('change', loadStats);
+  $('stats-refresh').addEventListener('click', loadStats);
+
   function updateSummary() {
     $('pending-count').textContent = String(pending.size);
     $('save-summary').textContent = `${pending.size} ${pending.size === 1 ? 'produto alterado' : 'produtos alterados'}`;
-    $('save-bar').hidden = pending.size === 0;
+    $('save-bar').hidden = statsOpen || pending.size === 0;
     $('review').disabled = errors.size > 0 || busy;
   }
   function renderProducts() {
