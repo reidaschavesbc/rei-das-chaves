@@ -9,6 +9,7 @@
   const money = (value) => (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const decimal = (value) => (value / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, useGrouping: false });
   const installmentText = count => count === 0 ? 'Não exibir parcelamento' : count === 1 ? 'Em 1x sem juros' : `Até ${count}x sem juros`;
+  const visibilityText = active => active ? 'Ativo no site' : 'Inativo no site';
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const viewStorageKey = 'rdc_admin_view';
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
@@ -151,7 +152,8 @@
       image.addEventListener('error', () => { image.hidden = true; media.textContent = 'Imagem indisponível'; });
       media.append(image);
       const body = node('div', 'product-body');
-      body.append(node('span', 'product-category', categories.find(c => c.id === product.category).name), node('h3', '', product.name), node('p', 'current-price', `No site: ${money(product.priceCents)} · ${installmentText(product.installments)}`));
+      const activeOnSite = product.active !== false;
+      body.append(node('span', 'product-category', categories.find(c => c.id === product.category).name), node('h3', '', product.name), node('p', 'current-price', `${visibilityText(activeOnSite)} · ${money(product.priceCents)} · ${installmentText(product.installments)}`));
       const label = node('label', 'price-label', 'Preço de venda');
       label.htmlFor = `price-${product.id}`;
       const field = node('div', 'price-input');
@@ -169,34 +171,48 @@
       }
       installmentSelect.value = String(pending.has(product.id) ? pending.get(product.id).installments : product.installments);
       installmentSelect.disabled = preview || busy;
+      const visibilityLabel = node('label', 'installments-label', 'Visibilidade no site');
+      visibilityLabel.htmlFor = `visibility-${product.id}`;
+      const visibility = node('select', 'installments-select');
+      visibility.id = visibilityLabel.htmlFor;
+      for (const [value, title] of [['active', 'Ativo'], ['inactive', 'Inativo']]) {
+        const option = node('option', '', title);
+        option.value = value;
+        visibility.append(option);
+      }
+      visibility.value = (pending.get(product.id)?.active ?? activeOnSite) ? 'active' : 'inactive';
+      visibility.disabled = preview || busy;
       const state = node('p', 'product-state', pending.has(product.id) ? 'Alteração não salva' : (preview ? 'Visualização do catálogo' : ''));
       state.id = `state-${product.id}`;
       input.setAttribute('aria-describedby', state.id);
       installmentSelect.setAttribute('aria-describedby', state.id);
+      visibility.setAttribute('aria-describedby', state.id);
       function syncChange() {
         if (busy) return;
         const text = input.value.trim();
         const valid = /^\d{1,7}(?:,\d{1,2})?$/.test(text);
         const cents = valid ? Math.round(Number(text.replace(',', '.')) * 100) : 0;
         const installments = Number(installmentSelect.value);
+        const active = visibility.value === 'active';
         const priceError = !valid || cents < 1 || cents > 99999999;
         const installmentsError = !Number.isSafeInteger(installments) || installments < 0 || installments > 10;
         const error = priceError || installmentsError;
         input.setAttribute('aria-invalid', String(priceError));
         installmentSelect.setAttribute('aria-invalid', String(installmentsError));
         error ? errors.add(product.id) : errors.delete(product.id);
-        if (!error && cents === product.priceCents && installments === product.installments) {
+        if (!error && cents === product.priceCents && installments === product.installments && active === activeOnSite) {
           pending.delete(product.id); card.classList.remove('changed'); state.textContent = preview ? 'Visualização do catálogo' : '';
         } else {
-          pending.set(product.id, { priceCents: cents, text, installments }); card.classList.add('changed');
+          pending.set(product.id, { priceCents: cents, text, installments, active: active === activeOnSite ? undefined : active }); card.classList.add('changed');
           state.textContent = priceError ? 'Informe um preço válido, como 750,00.' : installmentsError ? 'Escolha uma opção de parcelamento válida.' : 'Alteração não salva';
         }
         updateSummary();
       }
       input.addEventListener('input', syncChange);
       installmentSelect.addEventListener('change', syncChange);
+      visibility.addEventListener('change', syncChange);
       if (errors.has(product.id)) syncChange();
-      field.append(node('span', '', 'R$'), input); body.append(label, field, installmentLabel, installmentSelect, state); card.append(media, body); $('products').append(card);
+      field.append(node('span', '', 'R$'), input); body.append(label, field, installmentLabel, installmentSelect, visibilityLabel, visibility, state); card.append(media, body); $('products').append(card);
     }
     $('products').setAttribute('aria-busy', 'false');
     updateSummary();
@@ -241,6 +257,7 @@
       li.append(node('strong', '', product.name));
       if (product.priceCents !== change.priceCents) li.append(node('span', 'change-detail', `Preço: ${money(product.priceCents)} → ${money(change.priceCents)}`));
       if (product.installments !== change.installments) li.append(node('span', 'change-detail', `Parcelamento: ${installmentText(product.installments)} → ${installmentText(change.installments)}`));
+      if (change.active !== undefined) li.append(node('span', 'change-detail', visibilityText(change.active)));
       $('changes').append(li);
     }
     $('confirmation').showModal();
@@ -249,12 +266,12 @@
     if (busy || preview || errors.size || !pending.size) return;
     busy = true; $('publish').disabled = true; $('publish').textContent = 'Salvando…';
     $('products').inert = true; $('discard').disabled = true; $('reload').disabled = true;
-    const changes = [...pending].map(([id, p]) => ({ id, priceCents: p.priceCents, installments: p.installments }));
+    const changes = [...pending].map(([id, { text, active, ...fields }]) => active === undefined ? { id, ...fields } : { id, ...fields, active });
     try {
       const data = await api('prices', { method: 'POST', body: JSON.stringify({ revision, changes }) });
-      for (const change of changes) Object.assign(products.find(p => p.id === change.id), { priceCents: change.priceCents, installments: change.installments });
+      for (const change of changes) Object.assign(products.find(p => p.id === change.id), change);
       revision = data.revision; pending.clear(); errors.clear(); $('confirmation').close(); renderProducts();
-      message(data.unchanged ? 'As alterações já estavam salvas. Nenhuma publicação adicional foi necessária.' : 'Preços e parcelas salvos e publicados no site.');
+      message(data.unchanged ? 'As alterações já estavam salvas. Nenhuma publicação adicional foi necessária.' : 'Alterações salvas e publicadas no site.');
     } catch (error) { $('save-error').textContent = error.message; }
     finally { busy = false; $('products').inert = false; $('discard').disabled = false; $('reload').disabled = false; $('publish').disabled = false; $('publish').textContent = 'Salvar e publicar'; renderProducts(); }
   });

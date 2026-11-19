@@ -7,7 +7,7 @@
   <title>Painel de produtos | Rei das Chaves</title>
   <link rel="icon" href="/image/favicon-32x32.png">
   <link rel="stylesheet" href="/admin/admin.css?v=estatisticas-reset">
-  <script src="/admin/admin.js?v=restaurar-aba" defer></script>
+  <script src="/admin/admin.js?v=visibilidade-produtos" defer></script>
 </head>
 <body>
   <section id="login" class="login-shell" hidden>
@@ -62,7 +62,7 @@
       <header class="topbar"><span>Administração da loja</span><span class="account"><span class="account-dot"></span><span id="account-name">admin</span><button id="account-settings" class="text-button">Minha conta</button><button id="logout" class="text-button">Sair</button></span></header>
       <div class="content" id="catalog-view">
         <div id="mode-notice" class="notice" hidden></div>
-        <div class="heading"><div><h1>Produtos</h1><p>Atualize o preço e as parcelas de cada fechadura.</p></div><button id="reload" class="secondary">Atualizar lista</button></div>
+        <div class="heading"><div><h1>Produtos</h1><p>Edite preço, parcelas e visibilidade de cada fechadura.</p></div><button id="reload" class="secondary">Atualizar lista</button></div>
         <section class="overview" aria-label="Resumo do catálogo"><div><strong id="product-count">—</strong><span>Produtos no catálogo</span></div><div><strong id="category-count">3</strong><span>Categorias</span></div><div><strong id="pending-count">0</strong><span>Produtos para salvar</span></div></section>
         <div class="toolbar"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar por nome ou modelo" aria-label="Buscar produto"></label><label class="pending-filter"><input id="only-pending" type="checkbox"> Só alterações</label></div>
         <div class="section-heading"><h2 id="category-title">Todos os produtos</h2><span id="result-count"></span></div>
@@ -96,9 +96,9 @@
         <p class="current-price stats-note">Cada abertura conta como uma visualização. Cliques de contato não confirmam mensagens ou ligações concluídas.</p>
       </section>
     </main>
-    <footer id="save-bar" class="save-bar" hidden><div><strong id="save-summary"></strong><span>Confira os valores e as parcelas antes de publicar.</span></div><div class="save-actions"><button id="discard" class="secondary">Descartar</button><button id="review" class="primary">Revisar alterações</button></div></footer>
+    <footer id="save-bar" class="save-bar" hidden><div><strong id="save-summary"></strong><span>Confira as alterações antes de publicar.</span></div><div class="save-actions"><button id="discard" class="secondary">Descartar</button><button id="review" class="primary">Revisar alterações</button></div></footer>
   </div>
-  <dialog id="confirmation"><form method="dialog"><div class="dialog-heading"><h2>Conferir preços e parcelas</h2><button value="cancel" class="text-button" aria-label="Fechar">✕</button></div><p>Preços e parcelas serão atualizados juntos no catálogo e nas páginas dos produtos.</p><ul id="changes"></ul><p id="save-error" role="alert"></p><div class="dialog-actions"><button value="cancel" class="secondary">Voltar</button><button id="publish" type="button" class="primary">Salvar e publicar</button></div></form></dialog>
+  <dialog id="confirmation"><form method="dialog"><div class="dialog-heading"><h2>Conferir alterações</h2><button value="cancel" class="text-button" aria-label="Fechar">✕</button></div><p>Produtos inativos ficam disponíveis aqui no painel para reativação.</p><ul id="changes"></ul><p id="save-error" role="alert"></p><div class="dialog-actions"><button value="cancel" class="secondary">Voltar</button><button id="publish" type="button" class="primary">Salvar e publicar</button></div></form></dialog>
   <dialog id="stats-reset-dialog" aria-labelledby="stats-reset-title" aria-describedby="stats-reset-description">
     <h2 id="stats-reset-title">Zerar estatísticas?</h2>
     <p id="stats-reset-description">Isso apaga as visualizações e os cliques de todas as páginas e períodos. A contagem recomeça a partir das próximas interações.</p>

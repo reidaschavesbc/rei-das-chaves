@@ -1,7 +1,8 @@
 import { readFile, readdir, mkdir, link, writeFile, rename, symlink, rm, realpath } from 'node:fs/promises';
 import { resolve, join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { categories, parseCatalog, validateChanges, updateCatalog, updateProduct } from './catalog.mjs';
+import { categories, parseCatalog, validateChanges, updateCatalog, updateProduct, updateSitemapVisibility } from './catalog.mjs';
+const inactiveDirectory = '.inactive-products';
 export function createStore(stateRoot) {
   const root = resolve(stateRoot), releases = join(root, 'releases'), current = join(root, 'current');
   let queue = Promise.resolve();
@@ -33,22 +34,39 @@ export function createStore(stateRoot) {
     validateChanges(data.changes, base.products);
     const changes = data.changes.filter(c => {
       const product = base.products.find(p => p.id === c.id);
-      return Object.hasOwn(c, 'priceCents') && product.priceCents !== c.priceCents || Object.hasOwn(c, 'installments') && product.installments !== c.installments;
+      return (c.priceCents !== undefined && product.priceCents !== c.priceCents)
+        || (c.installments !== undefined && product.installments !== c.installments)
+        || (c.active !== undefined && product.active !== c.active);
     });
     if (!changes.length) return { revision: base.revision, unchanged: true };
     if (data.revision !== base.revision) { const error = new Error('O catálogo mudou em outra sessão. Atualize a lista antes de salvar.'); error.status = 409; throw error; }
     const revision = `${Date.now()}-${randomUUID()}`, directory = join(releases, revision), modified = new Map();
+    const moved = [];
     for (const change of changes) {
       const product = base.products.find(p => p.id === change.id);
-      modified.set(`${product.id}.html`, updateProduct(await readFile(join(base.directory, `${product.id}.html`), 'utf8'), change.priceCents, change.installments));
-      modified.set(product.catalog, updateCatalog(modified.get(product.catalog) || base.pages.get(product.catalog), product.id, change.priceCents, change.installments));
+      const file = `${product.id}.html`, inactiveFile = join(inactiveDirectory, file);
+      const source = product.active ? file : inactiveFile;
+      if (change.priceCents !== undefined || change.installments !== undefined) {
+        modified.set(source, updateProduct(await readFile(join(base.directory, source), 'utf8'), change.priceCents, change.installments));
+      }
+      modified.set(product.catalog, updateCatalog(modified.get(product.catalog) ?? base.pages.get(product.catalog), product.id, change.priceCents, change.installments, change.active));
+      if (change.active !== undefined && change.active !== product.active) {
+        moved.push([source, change.active ? file : inactiveFile]);
+        const sitemap = modified.get('sitemap.xml') ?? await readFile(join(base.directory, 'sitemap.xml'), 'utf8').catch(error => {
+          if (error.code === 'ENOENT') return '';
+          throw error;
+        });
+        if (sitemap) modified.set('sitemap.xml', updateSitemapVisibility(sitemap, product.id, change.active));
+      }
     }
     await copyLinks(base.directory, directory);
     for (const [file, content] of modified) await replaceFile(directory, file, content);
+    if (moved.length) await mkdir(join(directory, inactiveDirectory), { recursive: true });
+    for (const [source, target] of moved) await rename(join(directory, source), join(directory, target));
     await replaceFile(directory, 'release.json', JSON.stringify({ revision, savedAt: new Date().toISOString(), previous: base.revision, changes }) + '\n');
     const tempLink = join(root, `.current-${randomUUID()}`);
     await symlink(`releases/${revision}`, tempLink);
-    // All prices become visible together via a single atomic symlink replacement.
+    // Publish the catalog and product pages together via one atomic symlink replacement.
     await rename(tempLink, current);
     try {
       const active = await realpath(current);

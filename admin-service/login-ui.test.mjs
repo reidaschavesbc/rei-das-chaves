@@ -44,6 +44,27 @@ test('recarregar o admin restaura Estatísticas e a última categoria selecionad
   assert.equal(catalog.get('stats-view').hidden, true);
   assert.equal(catalog.get('category-title').textContent, 'Eletrônicas');
 });
+test('painel revisa e publica a desativação e mantém o produto disponível para reativar', async () => {
+  const product = { id: 'produto-fixture', name: 'Fechadura de teste', image: 'image/fixture.png', category: 'eletronicas', priceCents: 99000, installments: 5, active: true };
+  let changes;
+  const ui = page({ authenticated: true, request: async (url, options) => {
+    if (url === '/api/products') return { ok: true, json: async () => ({ products: [product], revision: 'original' }) };
+    assert.equal(url, '/api/prices');
+    changes = JSON.parse(options.body).changes;
+    return { ok: true, json: async () => ({ revision: 'saved' }) };
+  } });
+  await tick();
+  const visibility = ui.get('visibility-produto-fixture');
+  assert.equal(visibility.value, 'active');
+  visibility.value = 'inactive';
+  visibility.events.change();
+  ui.get('review').events.click();
+  assert.equal(ui.get('changes').children[0].children[1].textContent, 'Inativo no site');
+  await ui.get('publish').events.click();
+  assert.deepEqual(changes, [{ id: product.id, priceCents: 99000, installments: 5, active: false }]);
+  assert.equal(ui.get('products').children.length, 1);
+  assert.equal(ui.get('visibility-produto-fixture').value, 'inactive');
+});
 test('admin/admin entra direto pela URL normal e mostra os produtos sem convite ou troca obrigatória', async () => {
   let submitted;
   const ui = page({ request: async (url, options) => {

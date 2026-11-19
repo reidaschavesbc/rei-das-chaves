@@ -11,10 +11,10 @@ export function parsePrice(text) {
   if (!match) throw new Error('Preço do catálogo inválido.');
   return Number(match[1].replaceAll('.', '')) * 100 + Number(match[2]);
 }
+const cards = /(<template data-inactive-product>)?(<a\s+class="product-card"\s+href="(produto-[\w-]+)(?:\.html)?">([\s\S]*?)<\/a>)(?:<\/template>)?/g;
 export function parseCatalog(html, category) {
   const products = [];
-  for (const match of html.matchAll(/<a\s+class="product-card"\s+href="(produto-[\w-]+)(?:\.html)?">([\s\S]*?)<\/a>/g)) {
-    const [, id, body] = match;
+  for (const [, inactive, , id, body] of html.matchAll(cards)) {
     const name = body.match(/class="product-card-name">([^<]+)</)?.[1];
     const image = body.match(/<img\s+src="(image\/[\w/.-]+)"/)?.[1];
     const price = body.match(/class="product-card-price">([^<]+)</)?.[1];
@@ -22,7 +22,7 @@ export function parseCatalog(html, category) {
     const installmentText = body.match(/class="product-card-installments"\s+data-installments="(\d+)"/)?.[1];
     const installments = installmentText === undefined ? 0 : Number(installmentText);
     if (!validInstallments(installments)) throw new Error(`Parcelamento inválido: ${id}`);
-    products.push({ id, name, image, category: category.id, catalog: category.file, priceCents: parsePrice(price), installments });
+    products.push({ id, name, image, category: category.id, catalog: category.file, priceCents: parsePrice(price), installments, active: !inactive });
   }
   if (!products.length) throw new Error(`Catálogo vazio: ${category.file}`);
   return products;
@@ -32,8 +32,10 @@ export function validateChanges(changes, products) {
   const ids = new Set();
   for (const change of changes) {
     if (!change || typeof change !== 'object' || !products.some(p => p.id === change.id) || ids.has(change.id)) throw new Error('Produto inválido.');
-    const price = Object.hasOwn(change, 'priceCents'), installments = Object.hasOwn(change, 'installments');
-    if (!price && !installments || price && (!Number.isSafeInteger(change.priceCents) || change.priceCents < 1 || change.priceCents > 99999999) || installments && !validInstallments(change.installments)) throw new Error('Preço ou parcelamento inválido.');
+    const price = Object.hasOwn(change, 'priceCents'), installments = Object.hasOwn(change, 'installments'), visibility = Object.hasOwn(change, 'active');
+    if (!price && !installments && !visibility) throw new Error('Nenhuma alteração informada.');
+    if (price && (!Number.isSafeInteger(change.priceCents) || change.priceCents < 1 || change.priceCents > 99999999) || installments && !validInstallments(change.installments)) throw new Error('Preço ou parcelamento inválido.');
+    if (visibility && typeof change.active !== 'boolean') throw new Error('Visibilidade do produto inválida.');
     ids.add(change.id);
   }
 }
@@ -47,22 +49,28 @@ function updateInstallments(html, classes, installments) {
   if (count !== classes.length) throw new Error('O parcelamento da página mudou de formato. Nenhuma alteração foi publicada.');
   return result;
 }
-export function updateCatalog(html, id, cents, installments) {
+export function updateCatalog(html, id, cents, installments, active) {
   let count = 0;
-  const result = html.replace(/(<a\s+class="product-card"\s+href=")(produto-[\w-]+)(\.html)?(">[\s\S]*?<\/a>)/g, (block, _start, candidate) => {
+  const result = html.replace(cards, (block, inactive, card, candidate) => {
     if (candidate !== id) return block;
     count++;
-    let result = block;
+    let result = card;
     if (cents !== undefined) {
       let prices = 0;
       result = result.replace(/(class="product-card-price">)[^<]+(?=<)/g, (_, prefix) => { prices++; return prefix + formatPrice(cents); });
       if (prices !== 1) throw new Error(`Preço do cartão inválido: ${id}.`);
     }
     if (installments !== undefined) result = updateInstallments(result, ['product-card-installments'], installments);
-    return result;
+    return (active ?? !inactive) ? result : '<template data-inactive-product>' + result + '</template>';
   });
   if (count !== 1) throw new Error(`Não foi possível atualizar o cartão de ${id}.`);
   return result;
+}
+export function updateSitemapVisibility(xml, id, active) {
+  return xml.replace(/(?:<!-- inactive-product )?(<url><loc>[^<]*\/(produto-[\w-]+)<\/loc>[^]*?<\/url>)(?: -->)?/g, (block, entry, candidate) => {
+    if (candidate !== id) return block;
+    return active ? entry : '<!-- inactive-product ' + entry + ' -->';
+  });
 }
 export function updateProduct(html, cents, installments) {
   let count = 0;
