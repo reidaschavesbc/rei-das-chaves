@@ -35,10 +35,23 @@
       if (!low) throw new Error('Ative só as opções com parcelas de pelo menos R$ 0,01.');
       return [{ count, rate, total, low, remainder }];
     });
-    const featured = options.filter(option => option.rate === 0).at(-1) ?? options.at(-1);
-    const headline = featured ? installmentLabel(featured) + (featured.rate ? ' com juros' : ' sem juros') : '';
     const reference = terms.discount && terms.display === 'offer' ? 'De ' + money(base) : '';
-    return { price, cashOnly, reference, headline, options };
+    return { price, cashOnly, reference, headline: highlight(options), options };
+  }
+
+  function highlight(options) {
+    const selected = options.filter(option => option.rate === 0).at(-1) ?? options.at(-1);
+    return selected ? installmentLabel(selected) + (selected.rate ? ' com juros' : ' sem juros') : '';
+  }
+
+  function presentation(offer) {
+    const first = offer.options[0];
+    const sameCashPrice = !offer.cashOnly && first?.count === 1 && first.rate === 0 && first.total === offer.price;
+    return {
+      cashMethods: sameCashPrice ? 'Dinheiro, cartão em 1x ou Pix' : '',
+      headline: sameCashPrice ? highlight(offer.options.slice(1)) : offer.headline,
+      showTable: offer.options.length > Number(sameCashPrice)
+    };
   }
 
   function installmentLabel({ count, low, remainder }) {
@@ -65,7 +78,7 @@
     return `${remainder ? count + 'x (' + values + ')' : values} · ${rate ? percent(rate) + ' de juros' : 'sem juros'} · Total ${money(total)}`;
   }
 
-  const payment = { money, readPercent, defaultTerms, termsKey, describe, optionLabel, table };
+  const payment = { money, readPercent, defaultTerms, termsKey, describe, optionLabel, table, presentation };
   if (typeof module === 'object' && module.exports) module.exports = payment;
   else globalThis.RdcPayment = payment;
 })();

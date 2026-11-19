@@ -156,8 +156,14 @@
         const offer = payment.describe(base, terms);
         if (offer.reference) preview.append(node('del', '', offer.reference));
         preview.append(node('strong', '', (offer.reference ? 'Por ' : '') + money(offer.price) + (offer.cashOnly ? ' à vista' : '')));
-        if (offer.headline) preview.append(node('p', '', offer.headline));
-        if (offer.options.length) {
+        const display = payment.presentation(offer);
+        if (display.cashMethods) {
+          const cash = node('div', 'payment-cash');
+          cash.append(node('strong', '', 'À vista'), node('span', '', display.cashMethods));
+          preview.append(cash);
+        }
+        if (display.headline) preview.append(node('p', '', display.headline));
+        if (display.showTable) {
           const { rows, notes } = payment.table(offer);
           const details = node('details');
           const table = node('table');

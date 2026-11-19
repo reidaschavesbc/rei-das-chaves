@@ -737,7 +737,7 @@
 }
 
 /* Parcelamento individual, logo abaixo do preço. */
-.product-price-row:has(+ .product-installments) { margin-bottom: 0; }
+.product-price-row:has(+ .product-installments, + .payment-cash) { margin-bottom: 0; }
 .product-installments { margin: 6px 0 18px; color: #eee6d5; font-size: 15px; line-height: 1.4; }
 .product-card-installments { margin: 4px 0 0; color: #d7c7a4; font-size: 12px; line-height: 1.4; }
 .sticky-buy-installments { margin-top: 2px; color: #d7c7a4; font-size: 11px; line-height: 1.3; }
@@ -767,3 +767,19 @@
 .payment-options td, .payment-options th:last-child { padding-left: 12px; text-align: right; white-space: nowrap; }
 .payment-options small { display: block; margin-top: 2px; color: var(--text-muted); }
 .payment-options-note { margin: 6px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+
+.payment-cash {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 8px 0 14px;
+  color: #eee6d5;
+  font-size: 14px;
+}
+.payment-cash strong {
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #9ae5b51c;
+  color: #9ae5b5;
+}

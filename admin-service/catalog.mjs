@@ -112,11 +112,15 @@ function renderPayment(html, { priceCents, payment: terms }, isCard) {
     if (kind === 'sticky-buy-price') return open + formatPrice(offer.price) + label + close;
     return reference + open + formatPrice(offer.price) + close + label;
   });
-  const details = !isCard && offer.options.length ? paymentTable(offer) : '';
+  const display = payment.presentation(offer);
+  const cash = display.cashMethods ? '<div class="payment-cash"><strong>À vista</strong><span>' + display.cashMethods + '</span></div>' : '';
+  const details = !isCard && display.showTable ? paymentTable(offer) : '';
   result = result.replace(/(<(p|div) class="(product-card-installments|product-installments|sticky-buy-installments)" data-installments="\d+")(?: hidden)?>[^<]*<\/\2>/g,
     (_, open, tag, kind) => {
-      const summary = open + (offer.headline ? '' : ' hidden') + '>' + offer.headline + '</' + tag + '>';
-      return kind === 'product-installments' ? summary + wrap(details) : summary;
+      const main = kind === 'product-installments';
+      const headline = main ? display.headline : offer.headline;
+      const summary = open + (headline ? '' : ' hidden') + '>' + headline + '</' + tag + '>';
+      return main ? wrap(cash) + summary + wrap(details) : summary;
     });
   if (isCard) {
     const config = JSON.stringify([priceCents, terms.discount, terms.scope, terms.display, terms.rates]);

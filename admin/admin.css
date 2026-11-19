@@ -206,6 +206,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline-color: var(
 .payment-preview tbody th { font-weight: 500; }
 .payment-preview td, .payment-preview th:last-child { text-align: right; padding-left: 10px; white-space: nowrap; }
 .payment-preview small { display: block; color: var(--muted); }
+.payment-preview .payment-cash { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 8px 0 12px; font-size: 13px; }
+.payment-preview .payment-cash strong { color: #9ae5b5; font-size: 13px; }
 .payment-preview p { margin: 3px 0 10px; }
 #payment-error { margin: 8px 0 0; }
 @media (max-width: 520px) {
