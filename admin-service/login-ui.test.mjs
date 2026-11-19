@@ -85,7 +85,7 @@ test('prévia e publicação do desconto e dos juros usam as opções do produto
   ui.get('payment-dialog').events.input();
   const preview = ui.get('payment-preview').children;
   assert.match(preview[1].textContent, /891,00 à vista/);
-  assert.match(preview[2].textContent, /5x de R\$ 198,00 sem juros/);
+  assert.match(preview[2].textContent, /^Até 5x de R\$ 198,00 sem juros$/);
   const row = preview[3].children[1].children[1].children[5];
   assert.deepEqual(row.children.map(cell => cell.textContent), ['6x de R$ 173,25', 'R$ 1.039,50']);
   ui.get('payment-apply').events.click();

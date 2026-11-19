@@ -41,7 +41,11 @@
 
   function highlight(options) {
     const selected = options.filter(option => option.rate === 0).at(-1) ?? options.at(-1);
-    return selected ? installmentLabel(selected) + (selected.rate ? ' com juros' : ' sem juros') : '';
+    if (!selected) return '';
+    const label = selected.remainder
+      ? `${selected.count}x com parcelas de até ${money(selected.low + 1)}`
+      : installmentLabel(selected);
+    return (selected.count > 1 ? 'Até ' : '') + label + (selected.rate ? ' com juros' : ' sem juros');
   }
 
   function presentation(offer) {

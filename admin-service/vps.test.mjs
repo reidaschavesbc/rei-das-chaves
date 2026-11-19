@@ -141,7 +141,7 @@ test('API protege login, origem, arquivos privados e revogação da sessão', as
     const offerPage = await (await fetch(url + '/' + target.id)).text();
     assert.match(offerPage, /<del>De R\$ 990,00<\/del>/);
     assert.equal((offerPage.match(/R\$ 891,00/g) || []).length, 2);
-    assert.match(offerPage, /5x de R\$ 198,00 sem juros/);
+    assert.match(offerPage, /Até 5x de R\$ 198,00 sem juros/);
     assert.match(offerPage, /<summary>Ver parcelas<\/summary>/);
     assert.match(offerPage, /<th scope="row">6x de R\$ 173,25<\/th><td>R\$ 1\.039,50<\/td>/);
     assert.doesNotMatch(offerPage, /3x de/);
