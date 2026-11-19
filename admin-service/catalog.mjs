@@ -101,7 +101,7 @@ export function updateProduct(html, cents, installments, offer) {
 }
 
 
-function renderPayment(html, { priceCents, installments, payment: terms }, isCard) {
+function renderPayment(html, { priceCents, payment: terms }, isCard) {
   let result = html.replace(paymentConfig, '').replace(offerMarkup, '');
   if (!terms) return result;
   const offer = payment.describe(priceCents, terms);
@@ -112,16 +112,25 @@ function renderPayment(html, { priceCents, installments, payment: terms }, isCar
     if (kind === 'sticky-buy-price') return open + formatPrice(offer.price) + label + close;
     return reference + open + formatPrice(offer.price) + close + label;
   });
-  const details = '<details class="product-installments"><summary>Ver opções de parcelamento</summary><ul>' +
-    offer.options.map(option => '<li>' + payment.optionLabel(option) + '</li>').join('') + '</ul></details>';
+  const details = !isCard && offer.options.length ? paymentTable(offer) : '';
   result = result.replace(/(<(p|div) class="(product-card-installments|product-installments|sticky-buy-installments)" data-installments="\d+")(?: hidden)?>[^<]*<\/\2>/g,
     (_, open, tag, kind) => {
       const summary = open + (offer.headline ? '' : ' hidden') + '>' + offer.headline + '</' + tag + '>';
-      return kind === 'product-installments' && offer.options.length ? summary + wrap(details) : summary;
+      return kind === 'product-installments' ? summary + wrap(details) : summary;
     });
   if (isCard) {
     const config = JSON.stringify([priceCents, terms.discount, terms.scope, terms.display, terms.rates]);
     result = result.replace(/<\/a>$/, '<!--rdc-payment:' + config + '--></a>');
   }
   return result;
+}
+
+function paymentTable(offer) {
+  const { rows, notes } = payment.table(offer);
+  const body = rows.map(row => '<tr><th scope="row">' + row.installment +
+    (row.noInterest ? '<small>Sem juros</small>' : '') + '</th><td>' + row.total + '</td></tr>').join('');
+  const footer = notes.length ? '<p class="payment-options-note">' + notes.join(' ') + '</p>' : '';
+  return '<details class="payment-options"><summary>Ver parcelas</summary><div class="payment-options-body">' +
+    '<table><thead><tr><th scope="col">Parcelas</th><th scope="col">Total</th></tr></thead>' +
+    '<tbody>' + body + '</tbody></table>' + footer + '</div></details>';
 }

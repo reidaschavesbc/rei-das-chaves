@@ -741,3 +741,29 @@
 .product-installments { margin: 6px 0 18px; color: #eee6d5; font-size: 15px; line-height: 1.4; }
 .product-card-installments { margin: 4px 0 0; color: #d7c7a4; font-size: 12px; line-height: 1.4; }
 .sticky-buy-installments { margin-top: 2px; color: #d7c7a4; font-size: 11px; line-height: 1.3; }
+
+.payment-options {
+  max-width: 420px;
+  margin: 0 0 20px;
+  border: 1px solid var(--glass-border, #ffffff28);
+  border-radius: 10px;
+  background: #ffffff08;
+  color: #eee6d5;
+}
+.payment-options summary {
+  padding: 11px 13px;
+  color: #f4d386;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.payment-options summary:focus-visible { outline: 2px solid #f4d386; outline-offset: 3px; border-radius: inherit; }
+.payment-options-body { padding: 0 13px 11px; }
+.payment-options table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.payment-options th, .payment-options td { padding: 8px 0; text-align: left; }
+.payment-options thead th { color: var(--text-muted); font-size: 12px; }
+.payment-options tbody th { font-weight: 500; }
+.payment-options tbody tr { border-top: 1px solid #ffffff21; }
+.payment-options td, .payment-options th:last-child { padding-left: 12px; text-align: right; white-space: nowrap; }
+.payment-options small { display: block; margin-top: 2px; color: var(--text-muted); }
+.payment-options-note { margin: 6px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.45; }

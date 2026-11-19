@@ -199,8 +199,13 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline-color: var(
 .payment-settings label > *, .payment-rates input { margin-top: 5px; }
 .payment-preview { margin-top: 16px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; }
 .payment-preview strong { display: block; color: var(--gold); font-size: 21px; }
-.payment-preview ul { margin: 8px 0 14px; }
-.payment-preview li { padding: 6px 0; }
+.payment-preview details { margin-bottom: 10px; }
+.payment-preview summary { color: var(--gold); cursor: pointer; padding: 6px 0; }
+.payment-preview table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.payment-preview th, .payment-preview td { padding: 8px 0; border-bottom: 1px solid var(--line); text-align: left; }
+.payment-preview tbody th { font-weight: 500; }
+.payment-preview td, .payment-preview th:last-child { text-align: right; padding-left: 10px; white-space: nowrap; }
+.payment-preview small { display: block; color: var(--muted); }
 .payment-preview p { margin: 3px 0 10px; }
 #payment-error { margin: 8px 0 0; }
 @media (max-width: 520px) {

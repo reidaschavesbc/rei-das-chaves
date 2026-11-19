@@ -142,7 +142,8 @@ test('API protege login, origem, arquivos privados e revogação da sessão', as
     assert.match(offerPage, /<del>De R\$ 990,00<\/del>/);
     assert.equal((offerPage.match(/R\$ 891,00/g) || []).length, 2);
     assert.match(offerPage, /5x de R\$ 198,00 sem juros/);
-    assert.match(offerPage, /6x de R\$ 173,25.*1\.039,50/);
+    assert.match(offerPage, /<summary>Ver parcelas<\/summary>/);
+    assert.match(offerPage, /<th scope="row">6x de R\$ 173,25<\/th><td>R\$ 1\.039,50<\/td>/);
     assert.doesNotMatch(offerPage, /3x de/);
     const offerList = await (await fetch(url + '/fechaduras-eletronicas')).text();
     assert.match(offerList, /R\$ 891,00<\/span>/);
@@ -153,7 +154,7 @@ test('API protege login, origem, arquivos privados e revogação da sessão', as
     assert.equal(clearedOffer.status, 200);
     const normal = await (await fetch(url + '/' + target.id)).text();
     assert.equal((normal.match(/R\$ 1\.000,00/g) || []).length, 2);
-    assert.doesNotMatch(normal, /rdc-offer|Ver opções de parcelamento/);
+    assert.doesNotMatch(normal, /rdc-offer|Ver parcelas/);
     assert.equal((await post('/api/prices', {}, cookie, 'https://attacker.invalid')).status, 403);
     assert.equal((await post('/api/account', { username: 'new-owner', currentPassword: 'incorrect', password: 'new-fixture-password-2026' }, cookie)).status, 400);
     const changed = await post('/api/account', { username: 'new-owner', currentPassword: pw, password: 'new-fixture-password-2026' }, cookie);

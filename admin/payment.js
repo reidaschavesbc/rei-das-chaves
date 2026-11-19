@@ -36,9 +36,26 @@
       return [{ count, rate, total, low, remainder }];
     });
     const featured = options.filter(option => option.rate === 0).at(-1) ?? options.at(-1);
-    const headline = featured ? `${featured.count}x de ${featured.remainder ? 'até ' : ''}${money(featured.low + Number(featured.remainder > 0))} ${featured.rate ? 'com juros' : 'sem juros'}` : '';
+    const headline = featured ? installmentLabel(featured) + (featured.rate ? ' com juros' : ' sem juros') : '';
     const reference = terms.discount && terms.display === 'offer' ? 'De ' + money(base) : '';
     return { price, cashOnly, reference, headline, options };
+  }
+
+  function installmentLabel({ count, low, remainder }) {
+    return `${count}x de ${remainder ? 'até ' : ''}${money(low + Number(remainder > 0))}`;
+  }
+
+  function table(offer) {
+    const hasInterest = offer.options.some(option => option.rate > 0);
+    const rows = offer.options.map(option => ({
+      installment: installmentLabel(option),
+      noInterest: hasInterest && option.rate === 0,
+      total: money(option.total)
+    }));
+    const notes = [];
+    if (hasInterest) notes.push('Os totais já incluem os juros de cada opção.');
+    if (offer.options.some(option => option.remainder)) notes.push('Nas opções com “até”, algumas parcelas podem ser R$ 0,01 menores.');
+    return { rows, notes };
   }
 
   function optionLabel({ count, rate, total, low, remainder }) {
@@ -48,7 +65,7 @@
     return `${remainder ? count + 'x (' + values + ')' : values} · ${rate ? percent(rate) + ' de juros' : 'sem juros'} · Total ${money(total)}`;
   }
 
-  const payment = { money, readPercent, defaultTerms, termsKey, describe, optionLabel };
+  const payment = { money, readPercent, defaultTerms, termsKey, describe, optionLabel, table };
   if (typeof module === 'object' && module.exports) module.exports = payment;
   else globalThis.RdcPayment = payment;
 })();

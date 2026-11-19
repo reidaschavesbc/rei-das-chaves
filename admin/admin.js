@@ -158,10 +158,26 @@
         preview.append(node('strong', '', (offer.reference ? 'Por ' : '') + money(offer.price) + (offer.cashOnly ? ' à vista' : '')));
         if (offer.headline) preview.append(node('p', '', offer.headline));
         if (offer.options.length) {
+          const { rows, notes } = payment.table(offer);
           const details = node('details');
-          const options = node('ul');
-          for (const option of offer.options) options.append(node('li', '', payment.optionLabel(option)));
-          details.append(node('summary', '', 'Ver opções de parcelamento'), options);
+          const table = node('table');
+          const head = node('thead'), titles = node('tr'), body = node('tbody');
+          for (const name of ['Parcelas', 'Total']) {
+            const title = node('th', '', name);
+            title.scope = 'col';
+            titles.append(title);
+          }
+          head.append(titles);
+          for (const { installment, noInterest, total } of rows) {
+            const row = node('tr'), label = node('th', '', installment);
+            label.scope = 'row';
+            if (noInterest) label.append(node('small', '', 'Sem juros'));
+            row.append(label, node('td', '', total));
+            body.append(row);
+          }
+          table.append(head, body);
+          details.append(node('summary', '', 'Ver parcelas'), table);
+          if (notes.length) details.append(node('p', '', notes.join(' ')));
           preview.append(details);
         }
       } else {

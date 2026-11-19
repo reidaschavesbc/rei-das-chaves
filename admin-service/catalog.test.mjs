@@ -94,6 +94,8 @@ test('desconto nas parcelas usa o preço reduzido e distribui os centavos até f
   assert.equal(offer.cashOnly, false);
   assert.deepEqual(offer.options, [{ count: 6, rate: 500, total: 93555, low: 15592, remainder: 3 }]);
   assert.match(payment.optionLabel(offer.options[0]), /R\$ 155,93.*R\$ 155,92.*R\$ 935,55/);
+  assert.deepEqual(payment.table(offer).rows, [{ installment: '6x de até R$ 155,93', noInterest: false, total: 'R$ 935,55' }]);
+  assert.equal(payment.table(offer).notes.length, 2);
   assert.throws(() => payment.describe(99000, { ...terms, rates: Array(11).fill(0) }));
   assert.throws(() => payment.describe(99000, { ...terms, discount: 10000 }));
 });
