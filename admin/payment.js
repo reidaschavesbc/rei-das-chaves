@@ -45,7 +45,7 @@
     const label = selected.remainder
       ? `${selected.count}x com parcelas de até ${money(selected.low + 1)}`
       : installmentLabel(selected);
-    return (selected.count > 1 ? 'Até ' : '') + label + (selected.rate ? ' com juros' : ' sem juros');
+    return (selected.count > 1 ? 'Até ' : '') + label + (selected.rate === 0 ? ' sem juros' : '');
   }
 
   function presentation(offer) {

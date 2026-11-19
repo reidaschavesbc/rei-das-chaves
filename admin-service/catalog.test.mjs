@@ -109,7 +109,8 @@ test('preço à vista agrupa cartão em 1x só quando o valor é igual', async (
   assert.match(single, /class="product-installments" data-installments="\d+" hidden><\/p>/);
   assert.doesNotMatch(single, /<summary>Ver parcelas<\/summary>/);
   const multiple = markup({ ...terms, rates: [0, 500, ...terms.rates.slice(2)] });
-  assert.match(multiple, /Até 2x de R\$ 519,75 com juros/);
+  assert.match(multiple, /Até 2x de R\$ 519,75<\/p>/);
+  assert.match(multiple, /Os totais já incluem os juros de cada opção/);
   assert.match(multiple, /<summary>Ver parcelas<\/summary>/);
   assert.doesNotMatch(markup({ ...terms, discount: 1000, scope: 'cash' }), /class="payment-cash"/);
   assert.doesNotMatch(markup({ ...terms, rates: [300, ...terms.rates.slice(1)] }), /class="payment-cash"/);
