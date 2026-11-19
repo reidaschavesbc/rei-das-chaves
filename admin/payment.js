@@ -48,7 +48,7 @@
     const first = offer.options[0];
     const sameCashPrice = !offer.cashOnly && first?.count === 1 && first.rate === 0 && first.total === offer.price;
     return {
-      cashMethods: sameCashPrice ? 'Dinheiro, cartão em 1x ou Pix' : '',
+      cashMethods: sameCashPrice ? 'Dinheiro / PIX / 1x Cartão' : '',
       headline: sameCashPrice ? highlight(offer.options.slice(1)) : offer.headline,
       showTable: offer.options.length > Number(sameCashPrice)
     };
