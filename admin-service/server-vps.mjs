@@ -60,7 +60,7 @@ function login(req, res, username = 'admin') {
 async function asset(path, res) {
   if (path === '/') path = '/index.html';
   if (path === '/admin' || path === '/admin/') path = '/admin/index.html';
-  const admin = ['/admin/index.html', '/admin/admin.css', '/admin/admin.js'].includes(path);
+  const admin = ['/admin/index.html', '/admin/admin.css', '/admin/admin.js', '/admin/payment.js'].includes(path);
   if (!admin && !/^\/(?:[\w-]+(?:\.html|\.xml|\.txt)?|(?:image|css|js|video)\/[\w/.-]+\.(?:png|jpe?g|webp|ico|css|js|mp4))$/i.test(path)) throw new RequestError('Página não encontrada.', 404);
   const base = admin ? appRoot : await realpath(join(stateRoot, 'current'));
   if (!admin && !extname(path)) path += '.html';

@@ -1,6 +1,7 @@
 import { readFile, readdir, mkdir, link, writeFile, rename, symlink, rm, realpath } from 'node:fs/promises';
 import { resolve, join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import payment from '../admin/payment.js';
 import { categories, parseCatalog, validateChanges, updateCatalog, updateProduct, updateSitemapVisibility } from './catalog.mjs';
 const inactiveDirectory = '.inactive-products';
 export function createStore(stateRoot) {
@@ -36,6 +37,7 @@ export function createStore(stateRoot) {
       const product = base.products.find(p => p.id === c.id);
       return (c.priceCents !== undefined && product.priceCents !== c.priceCents)
         || (c.installments !== undefined && product.installments !== c.installments)
+        || (c.payment !== undefined && payment.termsKey(c.payment) !== payment.termsKey(product.payment))
         || (c.active !== undefined && product.active !== c.active);
     });
     if (!changes.length) return { revision: base.revision, unchanged: true };
@@ -46,10 +48,18 @@ export function createStore(stateRoot) {
       const product = base.products.find(p => p.id === change.id);
       const file = `${product.id}.html`, inactiveFile = join(inactiveDirectory, file);
       const source = product.active ? file : inactiveFile;
-      if (change.priceCents !== undefined || change.installments !== undefined) {
-        modified.set(source, updateProduct(await readFile(join(base.directory, source), 'utf8'), change.priceCents, change.installments));
+      const paymentChanged = change.priceCents !== undefined || change.installments !== undefined || change.payment !== undefined;
+      const offer = paymentChanged && (product.payment || change.payment !== undefined) ? {
+        priceCents: change.priceCents ?? product.priceCents,
+        installments: change.installments ?? product.installments,
+        payment: change.payment === undefined ? product.payment : change.payment
+      } : undefined;
+      const priceCents = offer?.priceCents ?? change.priceCents;
+      const installments = offer?.installments ?? change.installments;
+      if (paymentChanged) {
+        modified.set(source, updateProduct(await readFile(join(base.directory, source), 'utf8'), priceCents, installments, offer));
       }
-      modified.set(product.catalog, updateCatalog(modified.get(product.catalog) ?? base.pages.get(product.catalog), product.id, change.priceCents, change.installments, change.active));
+      modified.set(product.catalog, updateCatalog(modified.get(product.catalog) ?? base.pages.get(product.catalog), product.id, priceCents, installments, change.active, offer));
       if (change.active !== undefined && change.active !== product.active) {
         moved.push([source, change.active ? file : inactiveFile]);
         const sitemap = modified.get('sitemap.xml') ?? await readFile(join(base.directory, 'sitemap.xml'), 'utf8').catch(error => {

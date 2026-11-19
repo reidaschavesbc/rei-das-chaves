@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const code = await readFile(process.env.FRONTEND_SOURCE || new URL('../admin/admin.js', import.meta.url), 'utf8');
+const paymentCode = await readFile(new URL('../admin/payment.js', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function page({ token = '', storage = new Map(), request, invitationReady = false, authenticated = false } = {}) {
   const elements = new Map();
@@ -20,7 +21,9 @@ function page({ token = '', storage = new Map(), request, invitationReady = fals
       return request(url, options);
     }
   };
-  vm.runInNewContext(code, context);
+  vm.createContext(context);
+  vm.runInContext(paymentCode, context);
+  vm.runInContext(code, context);
   return { get, storage };
 }
 test('recarregar o admin restaura Estatísticas e a última categoria selecionada', async () => {
@@ -64,6 +67,30 @@ test('painel revisa e publica a desativação e mantém o produto disponível pa
   assert.deepEqual(changes, [{ id: product.id, priceCents: 99000, installments: 5, active: false }]);
   assert.equal(ui.get('products').children.length, 1);
   assert.equal(ui.get('visibility-produto-fixture').value, 'inactive');
+});
+test('prévia e publicação do desconto e dos juros usam as opções do produto', async () => {
+  const product = { id: 'produto-oferta', name: 'Dubai', image: 'image/fixture.png', category: 'eletronicas', priceCents: 99000, installments: 5, active: true };
+  let submitted;
+  const ui = page({ authenticated: true, request: async (url, options) => {
+    if (url === '/api/products') return { ok: true, json: async () => ({ products: [product], revision: 'original' }) };
+    assert.equal(url, '/api/prices');
+    submitted = JSON.parse(options.body).changes[0];
+    return { ok: true, json: async () => ({ revision: 'new' }) };
+  } });
+  await tick();
+  ui.get('payment-produto-oferta').events.click();
+  ui.get('payment-custom').checked = true;
+  ui.get('payment-discount').value = '10';
+  ui.get('payment-rates').children[5].children[0].value = '5';
+  ui.get('payment-dialog').events.input();
+  const preview = ui.get('payment-preview').children;
+  assert.match(preview[1].textContent, /891,00 à vista/);
+  assert.match(preview[2].textContent, /5x de R\$ 198,00 sem juros/);
+  assert.match(preview[3].children[1].children[5].textContent, /6x de R\$ 173,25.*1\.039,50/);
+  ui.get('payment-apply').events.click();
+  await ui.get('publish').events.click();
+  assert.deepEqual(submitted.payment, { discount: 1000, scope: 'cash', display: 'offer', rates: [0, 0, 0, 0, 0, 500, null, null, null, null] });
+  assert.equal(submitted.priceCents, 99000);
 });
 test('admin/admin entra direto pela URL normal e mostra os produtos sem convite ou troca obrigatória', async () => {
   let submitted;

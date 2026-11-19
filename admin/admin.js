@@ -6,10 +6,12 @@
     { id: 'stam', name: 'Mecânicas Stam', file: 'fechaduras-mecanicas-stam.html' }
   ];
   const $ = (id) => document.getElementById(id);
+  const payment = globalThis.RdcPayment;
   const money = (value) => (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const decimal = (value) => (value / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, useGrouping: false });
   const installmentText = count => count === 0 ? 'Não exibir parcelamento' : count === 1 ? 'Em 1x sem juros' : `Até ${count}x sem juros`;
   const visibilityText = active => active ? 'Ativo no site' : 'Inativo no site';
+  const readPrice = text => /^\d{1,7}(?:,\d{1,2})?$/.test(text) ? Math.round(Number(text.replace(',', '.')) * 100) : 0;
   const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const viewStorageKey = 'rdc_admin_view';
   let products = [], revision = '', activeCategory = 'all', preview = false, busy = false;
@@ -131,6 +133,77 @@
     }
   });
 
+  const paymentDialog = $('payment-dialog');
+  let paymentDraft;
+  function updatePaymentPreview() {
+    if (!paymentDraft) return;
+    const { base, installments, inputs } = paymentDraft;
+    const custom = $('payment-custom').checked;
+    $('payment-fields').hidden = !custom;
+    const preview = $('payment-preview');
+    preview.replaceChildren();
+    $('payment-error').textContent = '';
+    $('payment-apply').disabled = true;
+    try {
+      if (base < 1 || base > 99999999) throw new Error('Informe um preço de venda válido no cartão do produto.');
+      const terms = custom ? {
+        discount: payment.readPercent($('payment-discount').value || '0'),
+        scope: $('payment-scope').value,
+        display: $('payment-display').value,
+        rates: inputs.map(input => input.value.trim() === '' ? null : payment.readPercent(input.value))
+      } : null;
+      if (terms) {
+        const offer = payment.describe(base, terms);
+        if (offer.reference) preview.append(node('del', '', offer.reference));
+        preview.append(node('strong', '', (offer.reference ? 'Por ' : '') + money(offer.price) + (offer.cashOnly ? ' à vista' : '')));
+        if (offer.headline) preview.append(node('p', '', offer.headline));
+        if (offer.options.length) {
+          const details = node('details');
+          const options = node('ul');
+          for (const option of offer.options) options.append(node('li', '', payment.optionLabel(option)));
+          details.append(node('summary', '', 'Ver opções de parcelamento'), options);
+          preview.append(details);
+        }
+      } else {
+        preview.append(node('strong', '', money(base)));
+        if (installments) preview.append(node('p', '', installmentText(installments)));
+      }
+      paymentDraft.terms = terms;
+      $('payment-apply').disabled = false;
+    } catch (error) { $('payment-error').textContent = error.message; }
+  }
+  function openPayment(product, base, installments, terms, apply) {
+    const values = terms ?? payment.defaultTerms(installments);
+    $('payment-product').textContent = product.name;
+    $('payment-custom').checked = Boolean(terms);
+    $('payment-discount').value = String(values.discount / 100).replace('.', ',');
+    $('payment-scope').value = values.scope;
+    $('payment-display').value = values.display;
+    const rates = $('payment-rates');
+    rates.replaceChildren();
+    const inputs = values.rates.map((rate, index) => {
+      const label = node('label', '', `${index + 1}x (%)`);
+      const input = node('input', 'installments-select');
+      input.inputMode = 'decimal';
+      input.value = rate === null ? '' : String(rate / 100).replace('.', ',');
+      label.append(input);
+      rates.append(label);
+      return input;
+    });
+    paymentDraft = { base, installments, inputs, apply };
+    updatePaymentPreview();
+    paymentDialog.showModal();
+  }
+  paymentDialog.addEventListener('input', updatePaymentPreview);
+  paymentDialog.addEventListener('change', updatePaymentPreview);
+  paymentDialog.addEventListener('close', () => { paymentDraft = undefined; });
+  $('payment-apply').addEventListener('click', () => {
+    if (paymentDraft && !$('payment-apply').disabled) {
+      paymentDraft.apply(paymentDraft.terms);
+      paymentDialog.close();
+    }
+  });
+
   function updateSummary() {
     $('pending-count').textContent = String(pending.size);
     $('save-summary').textContent = `${pending.size} ${pending.size === 1 ? 'produto alterado' : 'produtos alterados'}`;
@@ -153,8 +226,11 @@
       media.append(image);
       const body = node('div', 'product-body');
       const activeOnSite = product.active !== false;
-      body.append(node('span', 'product-category', categories.find(c => c.id === product.category).name), node('h3', '', product.name), node('p', 'current-price', `${visibilityText(activeOnSite)} · ${money(product.priceCents)} · ${installmentText(product.installments)}`));
-      const label = node('label', 'price-label', 'Preço de venda');
+      const offer = product.payment && payment.describe(product.priceCents, product.payment);
+      const currentPrice = offer ? money(offer.price) + (offer.cashOnly ? ' à vista' : '') : money(product.priceCents);
+      const currentTerms = offer ? offer.headline : installmentText(product.installments);
+      body.append(node('span', 'product-category', categories.find(c => c.id === product.category).name), node('h3', '', product.name), node('p', 'current-price', [visibilityText(activeOnSite), currentPrice, currentTerms].filter(Boolean).join(' · ')));
+      const label = node('label', 'price-label', 'Preço base');
       label.htmlFor = `price-${product.id}`;
       const field = node('div', 'price-input');
       const input = node('input');
@@ -171,6 +247,20 @@
       }
       installmentSelect.value = String(pending.has(product.id) ? pending.get(product.id).installments : product.installments);
       installmentSelect.disabled = preview || busy;
+      const draftTerms = pending.get(product.id)?.payment;
+      let terms = draftTerms === undefined ? product.payment ?? null : draftTerms;
+      installmentLabel.hidden = installmentSelect.hidden = Boolean(terms);
+      const paymentButton = node('button', 'secondary payment-button', 'Preço e pagamento');
+      paymentButton.id = `payment-${product.id}`;
+      paymentButton.type = 'button';
+      paymentButton.disabled = preview || busy;
+      paymentButton.addEventListener('click', () => {
+        openPayment(product, readPrice(input.value.trim()), Number(installmentSelect.value), terms, nextTerms => {
+          terms = nextTerms;
+          installmentLabel.hidden = installmentSelect.hidden = Boolean(terms);
+          syncChange();
+        });
+      });
       const visibilityLabel = node('label', 'installments-label', 'Visibilidade no site');
       visibilityLabel.htmlFor = `visibility-${product.id}`;
       const visibility = node('select', 'installments-select');
@@ -190,21 +280,25 @@
       function syncChange() {
         if (busy) return;
         const text = input.value.trim();
-        const valid = /^\d{1,7}(?:,\d{1,2})?$/.test(text);
-        const cents = valid ? Math.round(Number(text.replace(',', '.')) * 100) : 0;
+        const cents = readPrice(text);
         const installments = Number(installmentSelect.value);
         const active = visibility.value === 'active';
-        const priceError = !valid || cents < 1 || cents > 99999999;
+        const priceError = cents < 1 || cents > 99999999;
         const installmentsError = !Number.isSafeInteger(installments) || installments < 0 || installments > 10;
-        const error = priceError || installmentsError;
+        let paymentError = '';
+        if (terms && !priceError) {
+          try { payment.describe(cents, terms); } catch (error) { paymentError = error.message; }
+        }
+        const error = priceError || installmentsError || paymentError;
+        const paymentChanged = payment.termsKey(terms) !== payment.termsKey(product.payment);
         input.setAttribute('aria-invalid', String(priceError));
         installmentSelect.setAttribute('aria-invalid', String(installmentsError));
         error ? errors.add(product.id) : errors.delete(product.id);
-        if (!error && cents === product.priceCents && installments === product.installments && active === activeOnSite) {
+        if (!error && cents === product.priceCents && installments === product.installments && active === activeOnSite && !paymentChanged) {
           pending.delete(product.id); card.classList.remove('changed'); state.textContent = preview ? 'Visualização do catálogo' : '';
         } else {
-          pending.set(product.id, { priceCents: cents, text, installments, active: active === activeOnSite ? undefined : active }); card.classList.add('changed');
-          state.textContent = priceError ? 'Informe um preço válido, como 750,00.' : installmentsError ? 'Escolha uma opção de parcelamento válida.' : 'Alteração não salva';
+          pending.set(product.id, { priceCents: cents, text, installments, active: active === activeOnSite ? undefined : active, payment: paymentChanged ? terms : undefined }); card.classList.add('changed');
+          state.textContent = priceError ? 'Informe um preço válido, como 750,00.' : installmentsError ? 'Escolha uma opção de parcelamento válida.' : paymentError || 'Alteração não salva';
         }
         updateSummary();
       }
@@ -212,7 +306,7 @@
       installmentSelect.addEventListener('change', syncChange);
       visibility.addEventListener('change', syncChange);
       if (errors.has(product.id)) syncChange();
-      field.append(node('span', '', 'R$'), input); body.append(label, field, installmentLabel, installmentSelect, visibilityLabel, visibility, state); card.append(media, body); $('products').append(card);
+      field.append(node('span', '', 'R$'), input); body.append(label, field, installmentLabel, installmentSelect, paymentButton, visibilityLabel, visibility, state); card.append(media, body); $('products').append(card);
     }
     $('products').setAttribute('aria-busy', 'false');
     updateSummary();
@@ -258,6 +352,12 @@
       if (product.priceCents !== change.priceCents) li.append(node('span', 'change-detail', `Preço: ${money(product.priceCents)} → ${money(change.priceCents)}`));
       if (product.installments !== change.installments) li.append(node('span', 'change-detail', `Parcelamento: ${installmentText(product.installments)} → ${installmentText(change.installments)}`));
       if (change.active !== undefined) li.append(node('span', 'change-detail', visibilityText(change.active)));
+      if (change.payment !== undefined) {
+        const offer = change.payment && payment.describe(change.priceCents, change.payment);
+        const summary = offer ? [offer.reference, money(offer.price) + (offer.cashOnly ? ' à vista' : ''), offer.headline].filter(Boolean).join(' · ') : 'Preço e parcelas simples';
+        li.append(node('span', 'change-detail', summary));
+        if (offer) for (const option of offer.options) li.append(node('span', 'change-detail', payment.optionLabel(option)));
+      }
       $('changes').append(li);
     }
     $('confirmation').showModal();
@@ -266,7 +366,9 @@
     if (busy || preview || errors.size || !pending.size) return;
     busy = true; $('publish').disabled = true; $('publish').textContent = 'Salvando…';
     $('products').inert = true; $('discard').disabled = true; $('reload').disabled = true;
-    const changes = [...pending].map(([id, { text, active, ...fields }]) => active === undefined ? { id, ...fields } : { id, ...fields, active });
+    const changes = [...pending].map(([id, { priceCents, installments, active, payment }]) => ({
+      id, priceCents, installments, ...(active === undefined ? {} : { active }), ...(payment === undefined ? {} : { payment })
+    }));
     try {
       const data = await api('prices', { method: 'POST', body: JSON.stringify({ revision, changes }) });
       for (const change of changes) Object.assign(products.find(p => p.id === change.id), change);

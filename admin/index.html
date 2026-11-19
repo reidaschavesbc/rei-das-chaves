@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Painel de produtos | Rei das Chaves</title>
   <link rel="icon" href="/image/favicon-32x32.png">
-  <link rel="stylesheet" href="/admin/admin.css?v=estatisticas-reset">
-  <script src="/admin/admin.js?v=visibilidade-produtos" defer></script>
+  <link rel="stylesheet" href="/admin/admin.css?v=pagamento">
+  <script src="/admin/payment.js?v=pagamento" defer></script>
+  <script src="/admin/admin.js?v=pagamento" defer></script>
 </head>
 <body>
   <section id="login" class="login-shell" hidden>
@@ -99,6 +100,38 @@
     <footer id="save-bar" class="save-bar" hidden><div><strong id="save-summary"></strong><span>Confira as alterações antes de publicar.</span></div><div class="save-actions"><button id="discard" class="secondary">Descartar</button><button id="review" class="primary">Revisar alterações</button></div></footer>
   </div>
   <dialog id="confirmation"><form method="dialog"><div class="dialog-heading"><h2>Conferir alterações</h2><button value="cancel" class="text-button" aria-label="Fechar">✕</button></div><p>Produtos inativos ficam disponíveis aqui no painel para reativação.</p><ul id="changes"></ul><p id="save-error" role="alert"></p><div class="dialog-actions"><button value="cancel" class="secondary">Voltar</button><button id="publish" type="button" class="primary">Salvar e publicar</button></div></form></dialog>
+  <dialog id="payment-dialog" aria-labelledby="payment-title">
+    <div class="dialog-heading"><h2 id="payment-title">Preço e pagamento</h2></div>
+    <p id="payment-product"></p>
+    <label class="pending-filter"><input type="checkbox" id="payment-custom"> Configurar desconto e juros por parcela</label>
+    <div id="payment-fields">
+      <div class="payment-settings">
+        <label>Desconto (%) <input id="payment-discount" class="installments-select" inputmode="decimal"></label>
+        <label>Aplicar desconto
+          <select id="payment-scope" class="installments-select">
+            <option value="cash">Só à vista</option><option value="all">À vista e nas parcelas</option>
+          </select>
+        </label>
+        <label>Exibir preço
+          <select id="payment-display" class="installments-select">
+            <option value="offer">De / por</option><option value="final">Só o preço final</option>
+          </select>
+        </label>
+      </div>
+      <h3>Juros por opção de parcelamento</h3>
+      <p>Informe 0 para oferecer sem juros. Deixe em branco a opção que não quer oferecer. A taxa incide uma vez sobre o total.</p>
+      <div id="payment-rates" class="payment-rates"></div>
+    </div>
+    <div class="payment-preview">
+      <h3>Prévia no site</h3>
+      <div id="payment-preview" aria-live="polite"></div>
+    </div>
+    <p id="payment-error" class="message error" role="alert"></p>
+    <form method="dialog" class="dialog-actions">
+      <button class="secondary">Cancelar</button>
+      <button id="payment-apply" type="button" class="primary">Aplicar ao produto</button>
+    </form>
+  </dialog>
   <dialog id="stats-reset-dialog" aria-labelledby="stats-reset-title" aria-describedby="stats-reset-description">
     <h2 id="stats-reset-title">Zerar estatísticas?</h2>
     <p id="stats-reset-description">Isso apaga as visualizações e os cliques de todas as páginas e períodos. A contagem recomeça a partir das próximas interações.</p>
